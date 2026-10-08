@@ -16,7 +16,7 @@
 | 网络模式 | 普通桥接 + 端口映射（NAS 的 53/UDP 和 8010） | macvlan 独立内网 IP |
 | PS5 入口 | 浏览器手动输 `http://<NAS的IP>:8010/` | 设置 → 用户指南（DNS 劫持直达） |
 | DNS 更新屏蔽 | ✅（PS5 DNS 指向 NAS IP） | ✅（PS5 DNS 指向容器 IP） |
-| 前提条件 | NAS 的 53/UDP、8010 端口空闲 | NAS 网卡可作 macvlan parent（见下方排错） |
+| 前提条件 | NAS 的 53/UDP（可关）、8010 端口空闲 | NAS 网卡可作 macvlan parent（见下方排错） |
 | 已知坑 | 几乎没有 | QNAP 上常见 `failed to create the macvlan port: device or resource busy`（eth0 被 QTS 网络栈占用）；报 `invalid subinterface vlan name` 则是网卡名不存在 |
 
 先用主推版跑通，想要「用户指南」入口的便利再折腾 macvlan 版。
@@ -45,7 +45,7 @@ nslookup www.baidu.com <NAS的IP>                # 应正常解析（DNS 转发�
 
 **⑤ PS5 侧**：浏览器打开 `http://<NAS的IP>:8010/` → all-in-one 页面自动跑完漏洞链并自动发送三个 payload。
 
-**⑥ 更新屏蔽（可选，默认未启用）**：NAS 的 53 端口空闲时，取消 YAML 里两条 `53` 映射的注释重新部署，然后把 PS5 手动 DNS 首选填 **NAS 的 IP**、备用留空。53 被占用时见下方排错。
+**⑥ 更新屏蔽（默认已启用，UDP 53）**：把 PS5 手动 DNS 首选填 **NAS 的 IP**、备用留空即生效；电脑上 `nslookup ps5.update.playstation.net <NAS的IP>` 应返回 NXDOMAIN。若部署报 53 端口被占（见下方排错），注释掉 YAML 里 `- "53:53/udp"` 重新部署即关闭屏蔽、站点不受影响。
 
 ## 常见问题（按报错对号入座）
 

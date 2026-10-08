@@ -26,11 +26,10 @@ services:
       - GH_PROXY=https://gh-proxy.com/
     ports:
       - "8010:80"
-      # ↓↓ 更新屏蔽（可选）：本配置只需 UDP 53（无 DNSSEC/大响应，不依赖 TCP）。
-      #   取消 UDP 那行注释即启用；NAS 的 53/udp 也被占时报
-      #   "bind: address already in use"，处理办法见 README「常见问题」。
-      #   TCP 53 一般不需要，保留注释即可。
-      # - "53:53/udp"
+      # ↓↓ 更新屏蔽已默认启用（本配置只需 UDP 53，无 DNSSEC/大响应，不依赖 TCP）。
+      #   若部署报 "bind: address already in use"（NAS 的 53/udp 被占），
+      #   注释掉 UDP 那行重新部署即可，站点不受影响；处理办法见 README「常见问题」。
+      - "53:53/udp"
       # - "53:53/tcp"
     command:
       - sh
@@ -94,7 +93,7 @@ services:
 
         dnsmasq --test -C /etc/ps5-dnsmasq.conf
         dnsmasq --no-daemon -C /etc/ps5-dnsmasq.conf &
-        echo "ps5-host: all services up — HTTP 8010 (DNS update-block ready; enable 53 port mapping to activate)"
+        echo "ps5-host: all services up — DNS 53/udp (update-block ACTIVE) / HTTP 8010"
         exec nginx -g "daemon off;"
     volumes:
       - ps5-www:/srv/www
