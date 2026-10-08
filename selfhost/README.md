@@ -2,6 +2,11 @@
 
 把本仓库变成一套完全离线可控的 PS5 exploit host：**DNS 接管用户指南入口 + 更新屏蔽 + HTTPS 静态站**，不依赖任何第三方公共服务。参照了 [flex36ty/ps5-relapse-selfhost](https://github.com/flex36ty/ps5-relapse-selfhost)（其自述不含更新屏蔽）与 [Al-Azif](https://github.com/Al-Azif/chukei-dns) 的屏蔽思路，并用容器（alpine + dnsmasq + nginx）实现，适配 QNAP Container Station / 任何能跑 Docker Compose 的 NAS。
 
+## 两种部署方式选一
+
+- **[onefile/ 单文件版](onefile/README.md)** —— NAS 不方便 SSH 的选这个：一个 compose YAML 粘贴进 Container Station 即可，页面文件内嵌、其余启动时从公共源下载，只需改 4 行网络参数。
+- **本目录完整版（下文）** —— 可以 SSH 的选这个：挂载仓库本体，内容与仓库完全同步，改起来最直接。
+
 ## 为什么全套自建
 
 | 方案 | 依赖第三方 | 防手滑升级 | 说明 |
