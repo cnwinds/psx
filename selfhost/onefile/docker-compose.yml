@@ -27,10 +27,10 @@ services:
       - GH_PROXY=https://gh-proxy.com/
     ports:
       - "8010:80"
-      # ↓↓ 更新屏蔽（可选）：需要 NAS 的 53 端口空闲，取消下面两行注释即可启用。
-      #   若启用后部署报 "bind: address already in use"，说明 NAS 上已有 DNS 服务
-      #   （QTS 虚拟交换机自带的 dnsmasq，或 AdGuard Home / Pi-hole 等容器），
-      #   处理办法见 README「常见问题」。
+      # ↓↓ 更新屏蔽（可选）：本配置只需 UDP 53（无 DNSSEC/大响应，不依赖 TCP）。
+      #   取消 UDP 那行注释即启用；NAS 的 53/udp 也被占时报
+      #   "bind: address already in use"，处理办法见 README「常见问题」。
+      #   TCP 53 一般不需要，保留注释即可。
       # - "53:53/udp"
       # - "53:53/tcp"
     command:
