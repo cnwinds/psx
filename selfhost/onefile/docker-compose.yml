@@ -38,7 +38,18 @@ services:
       - |
         set -e
         # ---- PS5 all-in-one host（bridge 版：DNS 屏蔽更新 + HTTP 站点）----
-        apk add -U dnsmasq nginx curl >/dev/null || { sed -i 's#dl-cdn.alpinelinux.org#mirrors.ustc.edu.cn#g' /etc/apk/repositories; apk add -U dnsmasq nginx curl >/dev/null; }
+        # 容器 DNS 直接钉公共上游，绕开 docker 内嵌 DNS/宿主解析器的不确定性
+        echo 'nameserver 223.5.5.5' > /etc/resolv.conf
+        echo 'nameserver 119.29.29.29' >> /etc/resolv.conf
+        # apk 源依次重试（国内源优先），失败显式 FATAL（busybox 的 set -e 会吞 OR 兜底块的退出码）
+        PKGS="dnsmasq nginx curl"
+        for m in mirrors.ustc.edu.cn mirrors.tuna.tsinghua.edu.cn mirrors.aliyun.com dl-cdn.alpinelinux.org; do
+        echo "https://$$m/alpine/v3.20/main" > /etc/apk/repositories
+        echo "https://$$m/alpine/v3.20/community" >> /etc/apk/repositories
+        echo "ps5-host: apk via $$m"
+        apk add -U $$PKGS >/dev/null 2>&1 && break
+        done
+        command -v nginx >/dev/null && command -v dnsmasq >/dev/null && command -v curl >/dev/null || { echo "ps5-host: FATAL all apk mirrors failed"; exit 1; }
 
         # ---- 站点：首启从公共仓库下载完整内容（页面 + 漏洞链 + payload 一步到位）----
         # 先下到文件再解压；GH_PROXY 有值时走加速，失败自动回退直连；总超时防挂死。

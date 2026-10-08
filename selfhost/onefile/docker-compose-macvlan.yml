@@ -27,7 +27,18 @@ services:
       - |
         set -e
         # ---- PS5 all-in-one host（单文件版，无需 NAS 上的任何本地文件）----
-        apk add -U dnsmasq nginx openssl curl >/dev/null || { sed -i 's#dl-cdn.alpinelinux.org#mirrors.ustc.edu.cn#g' /etc/apk/repositories; apk add -U dnsmasq nginx openssl curl >/dev/null; }
+        # 容器 DNS 直接钉公共上游，绕开 docker 内嵌 DNS/宿主解析器的不确定性
+        echo 'nameserver 223.5.5.5' > /etc/resolv.conf
+        echo 'nameserver 119.29.29.29' >> /etc/resolv.conf
+        # apk 源依次重试（国内源优先），失败显式 FATAL（busybox 的 set -e 会吞 OR 兜底块的退出码）
+        PKGS="dnsmasq nginx openssl curl"
+        for m in mirrors.ustc.edu.cn mirrors.tuna.tsinghua.edu.cn mirrors.aliyun.com dl-cdn.alpinelinux.org; do
+        echo "https://$$m/alpine/v3.20/main" > /etc/apk/repositories
+        echo "https://$$m/alpine/v3.20/community" >> /etc/apk/repositories
+        echo "ps5-host: apk via $$m"
+        apk add -U $$PKGS >/dev/null 2>&1 && break
+        done
+        command -v nginx >/dev/null && command -v dnsmasq >/dev/null && command -v curl >/dev/null || { echo "ps5-host: FATAL all apk mirrors failed"; exit 1; }
 
         LAN_IP=$$(ip -4 addr show dev eth0 | awk '/inet /{split($$2,a,"/"); print a[1]; exit}')
         echo "ps5-host: container IP = $$LAN_IP (PS5 首选 DNS 填这个，备用留空)"
