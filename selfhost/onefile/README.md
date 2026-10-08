@@ -13,10 +13,10 @@
 
 | | [`docker-compose.yml`](docker-compose.yml)（**主推**） | [`docker-compose-macvlan.yml`](docker-compose-macvlan.yml) |
 |---|---|---|
-| 网络模式 | 普通桥接 + 端口映射（NAS 的 53/UDP 和 8081） | macvlan 独立内网 IP |
-| PS5 入口 | 浏览器手动输 `http://<NAS的IP>:8081/` | 设置 → 用户指南（DNS 劫持直达） |
+| 网络模式 | 普通桥接 + 端口映射（NAS 的 53/UDP 和 8010） | macvlan 独立内网 IP |
+| PS5 入口 | 浏览器手动输 `http://<NAS的IP>:8010/` | 设置 → 用户指南（DNS 劫持直达） |
 | DNS 更新屏蔽 | ✅（PS5 DNS 指向 NAS IP） | ✅（PS5 DNS 指向容器 IP） |
-| 前提条件 | NAS 的 53/UDP、8081 端口空闲 | NAS 网卡可作 macvlan parent（见下方排错） |
+| 前提条件 | NAS 的 53/UDP、8010 端口空闲 | NAS 网卡可作 macvlan parent（见下方排错） |
 | 已知坑 | 几乎没有 | QNAP 上常见 `failed to create the macvlan port: device or resource busy`（eth0 被 QTS 网络栈占用）；报 `invalid subinterface vlan name` 则是网卡名不存在 |
 
 先用主推版跑通，想要「用户指南」入口的便利再折腾 macvlan 版。
@@ -25,14 +25,14 @@
 
 **① Container Station → 应用程序 → 创建 → 粘贴 YAML**：贴入 [`docker-compose.yml`](docker-compose.yml) 全文。
 
-**② 需要改的只有一处**：如果 NAS 的 8081 被占用，改 `ports:` 里的 `"8081:80"` 左半边为其他端口（QTS 管理页默认占 8080，避开即可）。
+**② 需要改的只有一处**：如果 NAS 的 8010 被占用，改 `ports:` 里的 `"8010:80"` 左半边为其他端口（QTS 管理页默认占 8080，避开即可）。
 
 **③ 部署**，容器日志依次出现即成功：
 
 ```
 ps5-host: downloading all-in-one site (first boot)...
 ps5-host: site ready (page + exploit + payloads)
-ps5-host: all services up — DNS 53 (update-blocked) / HTTP 8081
+ps5-host: all services up — DNS 53 (update-blocked) / HTTP 8010
 ```
 
 **④ 验证**（同网段电脑）：
@@ -40,10 +40,10 @@ ps5-host: all services up — DNS 53 (update-blocked) / HTTP 8081
 ```bash
 nslookup ps5.update.playstation.net <NAS的IP>   # 应返回 NXDOMAIN
 nslookup www.baidu.com <NAS的IP>                # 应正常解析（DNS 转发工作正常）
-浏览器打开 http://<NAS的IP>:8081/               # 应显示 all-in-one 页面
+浏览器打开 http://<NAS的IP>:8010/               # 应显示 all-in-one 页面
 ```
 
-**⑤ PS5 侧**：浏览器打开 `http://<NAS的IP>:8081/` → all-in-one 页面自动跑完漏洞链并自动发送三个 payload。
+**⑤ PS5 侧**：浏览器打开 `http://<NAS的IP>:8010/` → all-in-one 页面自动跑完漏洞链并自动发送三个 payload。
 
 **⑥ 更新屏蔽（可选，默认未启用）**：NAS 的 53 端口空闲时，取消 YAML 里两条 `53` 映射的注释重新部署，然后把 PS5 手动 DNS 首选填 **NAS 的 IP**、备用留空。53 被占用时见下方排错。
 
@@ -64,6 +64,6 @@ nslookup www.baidu.com <NAS的IP>                # 应正常解析（DNS 转发�
 
 - **仓库必须保持 public**：站点全部内容来自 `cnwinds/psx` 的 tarball，仓库转私有后新部署的容器将无法下载（已下载的命名卷不受影响）。
 - **首次启动需要外网**（GitHub 可达或配好 GH_PROXY，下载约 9 MB）；之后离线也能起。
-- **绝不暴露公网**：53 和 8081 不要在路由器做端口转发。
+- **绝不暴露公网**：53 和 8010 不要在路由器做端口转发。
 - NAS 停机 = PS5 解析不了任何域名（含更新检查）；恢复上网把 PS5 DNS 改回自动，改回期间别让它自动升级。
 - **更新站点内容**（改了页面或升级 payload 后）：更新 GitHub 仓库 → 删除 `ps5-www` 卷 → 重新部署。

@@ -4,15 +4,15 @@
 #
 # 这是主推版本：不依赖 macvlan（QNAP 上常因 eth0 被系统占用而报
 # "failed to create the macvlan port: device or resource busy"），
-# 只需 NAS 的 UDP/53 端口和 HTTP 端口（默认映射到 8081）空闲。
+# 只需 NAS 的 UDP/53 端口和 HTTP 端口（默认映射到 8010）空闲。
 #
 # >>> 部署后 PS5 侧 <<<
 #   - 网络 → 手动 DNS：首选填 NAS 的内网 IP（不是 192.168.1.250！就是 NAS 自己的 IP），备用留空
-#   - 浏览器打开 http://<NAS的IP>:8081/ 即 all-in-one 页面
+#   - 浏览器打开 http://<NAS的IP>:8010/ 即 all-in-one 页面
 #   - 更新屏蔽照常生效（DNS 在本容器）
 #
 # 可改参数：
-#   - "8081:80" 左边是 NAS 上对外暴露的 HTTP 端口，与 QTS(8080)等冲突时改掉
+#   - "8010:80" 左边是 NAS 上对外暴露的 HTTP 端口，与 QTS(8080)等冲突时改掉
 #   - GH_PROXY：GitHub 直连慢/失败时填加速前缀（以 / 结尾），如 https://gh-proxy.com/
 services:
   ps5-host:
@@ -26,7 +26,7 @@ services:
       # 加速站失效可换 https://ghproxy.net/ 或改为空串=直连。
       - GH_PROXY=https://gh-proxy.com/
     ports:
-      - "8081:80"
+      - "8010:80"
       # ↓↓ 更新屏蔽（可选）：需要 NAS 的 53 端口空闲，取消下面两行注释即可启用。
       #   若启用后部署报 "bind: address already in use"，说明 NAS 上已有 DNS 服务
       #   （QTS 虚拟交换机自带的 dnsmasq，或 AdGuard Home / Pi-hole 等容器），
@@ -73,7 +73,7 @@ services:
         address=/feu01.ps4.update.playstation.net/
         DNS_EOF
 
-        # ---- HTTP：静态站（PS5 浏览器直接访问 http://<NAS IP>:8081/）----
+        # ---- HTTP：静态站（PS5 浏览器直接访问 http://<NAS IP>:8010/）----
         cat > /etc/nginx/http.d/default.conf <<'NGINX_EOF'
         server {
         listen 80 default_server;
@@ -84,7 +84,7 @@ services:
 
         dnsmasq --test -C /etc/ps5-dnsmasq.conf
         dnsmasq --no-daemon -C /etc/ps5-dnsmasq.conf &
-        echo "ps5-host: all services up — HTTP 8081 (DNS update-block ready; enable 53 port mapping to activate)"
+        echo "ps5-host: all services up — HTTP 8010 (DNS update-block ready; enable 53 port mapping to activate)"
         exec nginx -g "daemon off;"
     volumes:
       - ps5-www:/srv/www
