@@ -22,7 +22,9 @@ services:
     container_name: ps5-host
     restart: unless-stopped
     environment:
-      - GH_PROXY=
+      # GitHub 下载加速前缀（以 / 结尾）。国内网络直连 GitHub 常见卡死，默认走加速。
+      # 加速站失效可换 https://ghproxy.net/ 或改为空串=直连。
+      - GH_PROXY=https://gh-proxy.com/
     ports:
       - "8081:80"
       # ↓↓ 更新屏蔽（可选）：需要 NAS 的 53 端口空闲，取消下面两行注释即可启用。
@@ -40,10 +42,20 @@ services:
         apk add -U dnsmasq nginx curl >/dev/null || { sed -i 's#dl-cdn.alpinelinux.org#mirrors.ustc.edu.cn#g' /etc/apk/repositories; apk add -U dnsmasq nginx curl >/dev/null; }
 
         # ---- 站点：首启从公共仓库下载完整内容（页面 + 漏洞链 + payload 一步到位）----
+        # 先下到文件再解压；GH_PROXY 有值时走加速，失败自动回退直连；总超时防挂死。
         if [ ! -f /srv/www/.site-ready ]; then
         echo "ps5-host: downloading all-in-one site (first boot)..."
         mkdir -p /srv/www
-        curl -fsSL --retry 3 --connect-timeout 15 "$${GH_PROXY}https://github.com/cnwinds/psx/archive/refs/heads/main.tar.gz" | tar -xz -C /srv/www --strip-components=1
+        SITE_URL=https://github.com/cnwinds/psx/archive/refs/heads/main.tar.gz
+        fetch_site() {
+        curl -fL --retry 2 --connect-timeout 10 --max-time 300 -o /tmp/site.tgz "$$1" && tar -xz -C /srv/www --strip-components=1 -f /tmp/site.tgz
+        }
+        if [ -n "$$GH_PROXY" ]; then
+        fetch_site "$$GH_PROXY$$SITE_URL" || fetch_site "$$SITE_URL"
+        else
+        fetch_site "$$SITE_URL"
+        fi
+        rm -f /tmp/site.tgz
         touch /srv/www/.site-ready
         echo "ps5-host: site ready (page + exploit + payloads)"
         fi
