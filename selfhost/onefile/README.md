@@ -50,7 +50,7 @@ nslookup www.baidu.com <NAS的IP>                # 应正常解析（DNS 转发�
 ## 常见问题（按报错对号入座）
 
 - **`The "xxx" variable is not set` 警告**：旧版问题已修复（shell 的 `$` 全部写成 `$$`）。手工编辑脚本时注意保留 `$$`。
-- **`failed to pull image ... registry-1.docker.io`（拉镜像超时）**：镜像已默认用国内源 `docker.xuanyuan.me`（实测匿名可拉）。**勿用 daocloud——已拒绝匿名拉取官方镜像**。备选 `docker.1ms.run`。
+- **`failed to pull image ... registry-1.docker.io`（拉镜像超时）**：镜像默认 `docker.m.daocloud.io`（NAS 实测可拉）；拉取失败换 `docker.xuanyuan.me` 或 `docker.1ms.run`（daocloud 对部分网络/IP 会返回 denied）。
 - **`curl: (XX) ...` 下载站点失败（卡在 downloading）**：GitHub 直连不通。把 `environment:` 里 `GH_PROXY=` 填上加速前缀（以 `/` 结尾），如 `https://gh-proxy.com/`（加速站时效性强，失效换一个），删掉 `ps5-www` 卷后重新部署。
 - **端口 53 冲突**（`bind: address already in use`，53 映射已默认注释）：NAS 上已有 DNS 服务。三类处理：
   1. **是 AdGuard Home / Pi-hole 等容器**（Container Station → 容器 页可看到）→ 不用本容器的 DNS，直接在它的管理界面加屏蔽规则：`ps5.update.playstation.net`、`ps4.update.playstation.net`、`feu01.ps4.update.playstation.net` 全部拒绝解析，PS5 的 DNS 指向它即可，效果等同；
