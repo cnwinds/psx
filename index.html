@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PS5 Relapse · All-in-One</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      background: #060606;
+      color: #e8e8e8;
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      min-height: 100%;
+    }
+    body { padding: 24px 16px 40px; }
+    .wrap { max-width: 960px; margin: 0 auto; }
+
+    .header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 6px; }
+    h1 { font-size: 26px; letter-spacing: 0.5px; }
+    h1 .accent { color: #4fc3f7; }
+    .badges { display: flex; gap: 8px; flex-wrap: wrap; }
+    .badge {
+      font-size: 12px; padding: 4px 10px; border-radius: 999px;
+      border: 1px solid #333; background: #111; color: #aaa;
+    }
+    .badge.ok { border-color: #2e5d32; color: #81c784; }
+    .subtitle { color: #888; font-size: 13px; margin-bottom: 18px; }
+
+    .steps { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+    .step {
+      flex: 1; min-width: 150px; text-align: center; font-size: 12px;
+      padding: 8px 6px; border: 1px solid #222; border-radius: 8px;
+      background: #0c0c0c; color: #777;
+    }
+    .step b { display: block; font-size: 13px; color: #bbb; margin-bottom: 2px; }
+
+    #console {
+      background: #000; border: 1px solid #1e1e1e; border-radius: 10px;
+      font-family: Consolas, Menlo, monospace; font-size: 13px; line-height: 1.55;
+      padding: 12px 14px; height: 300px; overflow-y: auto; margin-bottom: 18px;
+      white-space: pre-wrap; word-break: break-all;
+    }
+    #console > div { color: #9e9e9e; }
+    #console > div:last-child { color: #e0e0e0; }
+
+    .panel { margin-bottom: 18px; }
+    .hidden { display: none; }
+    .panel-title { font-size: 15px; color: #4fc3f7; margin-bottom: 10px; }
+    .panel-title small { color: #777; font-weight: normal; }
+
+    .autochain-box {
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+      border: 1px solid #2e3b44; background: #0b1014; border-radius: 10px;
+      padding: 14px; margin-bottom: 12px;
+    }
+    .autochain-box label { font-size: 13px; color: #9ab; display: flex; align-items: center; gap: 6px; }
+    button {
+      font-family: inherit; cursor: pointer; border: 0; border-radius: 8px;
+      font-size: 15px; padding: 10px 18px; color: #061014;
+      background: #4fc3f7;
+    }
+    button:hover { background: #81d4fa; }
+    button:disabled { background: #35505c; color: #7c98a4; cursor: default; }
+    button.small { font-size: 13px; padding: 8px 14px; }
+
+    .cards { display: flex; gap: 10px; flex-wrap: wrap; }
+    .card {
+      flex: 1; min-width: 250px; border: 1px solid #222; border-radius: 10px;
+      background: #0c0c0c; padding: 12px 14px; margin-bottom: 10px;
+    }
+    .card .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+    .card .name { font-size: 15px; color: #eee; }
+    .card .status { font-size: 12px; color: #888; }
+    .card[data-state="sending"] .status { color: #ffd54f; }
+    .card[data-state="done"] .status { color: #81c784; }
+    .card[data-state="failed"] .status { color: #e57373; }
+    .card .desc { font-size: 12px; color: #888; line-height: 1.5; }
+    .card .src { font-size: 11px; color: #556; margin-top: 6px; }
+    .card .src a { color: #4fc3f7; text-decoration: none; }
+
+    .downloads { border: 1px solid #1e1e1e; border-radius: 10px; background: #0a0a0a; padding: 12px 14px; }
+    .downloads table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .downloads td { padding: 6px 4px; border-bottom: 1px solid #161616; color: #999; }
+    .downloads tr:last-child td { border-bottom: 0; }
+    .downloads a { color: #4fc3f7; text-decoration: none; }
+    .downloads a:hover { text-decoration: underline; }
+    .downloads .size { color: #555; white-space: nowrap; }
+
+    details {
+      border: 1px solid #1e1e1e; border-radius: 10px; background: #0a0a0a;
+      padding: 12px 14px; margin-bottom: 18px; color: #aaa; font-size: 13px; line-height: 1.7;
+    }
+    summary { cursor: pointer; color: #ddd; font-size: 14px; margin-bottom: 8px; }
+    details ol, details ul { padding-left: 20px; }
+    details code {
+      background: #161616; border-radius: 4px; padding: 1px 5px;
+      font-family: Consolas, Menlo, monospace; font-size: 12px; color: #ce93d8;
+    }
+
+    .footer { border-top: 1px solid #1a1a1a; padding-top: 14px; font-size: 12px; color: #666; line-height: 1.7; }
+    .footer a { color: #4fc3f7; text-decoration: none; }
+    .warn { color: #a1887f; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="header">
+      <h1>PS5 Relapse <span class="accent">All-in-One</span></h1>
+      <div class="badges">
+        <span class="badge ok">FW 7.00 – 13.60</span>
+        <span class="badge">kstuff-lite 1.11</span>
+        <span class="badge">etaHEN 2.5B</span>
+        <span class="badge">ShadowMountPlus 1.7beta3</span>
+      </div>
+    </div>
+    <div class="subtitle">一站式主机：浏览器漏洞 → 内核提权 → elfldr(9021) → kstuff / etaHEN / ShadowMountPlus，全部在本页完成。</div>
+
+    <div class="steps">
+      <div class="step"><b>1 · WebKit</b>用户态读写</div>
+      <div class="step"><b>2 · Kernel</b>内核提权 / 沙箱逃逸</div>
+      <div class="step"><b>3 · elfldr</b>监听 127.0.0.1:9021</div>
+      <div class="step"><b>4 · Payloads</b>kstuff → etaHEN → SMP</div>
+    </div>
+
+    <div id="console"></div>
+
+    <div id="payload-panel" class="panel hidden">
+      <div class="panel-title">Payload 发送 <small>（elfldr 已就绪，可直接发送到 9021）</small></div>
+      <div class="autochain-box">
+        <button id="btn-autochain">一键加载全部</button>
+        <label><input type="checkbox" id="autochain-opt" checked> 漏洞利用成功后自动加载</label>
+      </div>
+      <div class="cards">
+        <div class="card" id="card-kstuff" data-state="idle">
+          <div class="row">
+            <span class="name">kstuff-lite 1.11</span>
+            <span class="status">待发送</span>
+          </div>
+          <div class="desc">内核补丁：FSELF / FPKG 支持，后续所有组件的基础（FW 1.00 – 13.60）。</div>
+          <div class="src"><a href="https://github.com/EchoStretch/kstuff-lite">EchoStretch/kstuff-lite</a> · payloads/kstuff.elf</div>
+          <div class="row" style="margin-top:10px"><button class="small" id="send-kstuff">发送</button></div>
+        </div>
+        <div class="card" id="card-etahen" data-state="idle">
+          <div class="row">
+            <span class="name">etaHEN 2.5B</span>
+            <span class="status">待发送</span>
+          </div>
+          <div class="desc">AIO HEN：Toolbox 调试设置、FTP(1337)、PKG 安装器(9090)、插件系统、自带 kstuff 集成。</div>
+          <div class="src"><a href="https://github.com/etaHEN/etaHEN">etaHEN/etaHEN</a> · payloads/etaHEN-2.5B.bin</div>
+          <div class="row" style="margin-top:10px"><button class="small" id="send-etahen">发送</button></div>
+        </div>
+        <div class="card" id="card-smp" data-state="idle">
+          <div class="row">
+            <span class="name">ShadowMountPlus 1.7beta3</span>
+            <span class="status">待发送</span>
+          </div>
+          <div class="desc">游戏镜像自动挂载（.ffpkg / .exfat / .ffpfs），自动扫描并安装，需 kstuff 运行中。</div>
+          <div class="src"><a href="https://github.com/drakmor/ShadowMountPlus">drakmor/ShadowMountPlus</a> · payloads/shadowmountplus.elf</div>
+          <div class="row" style="margin-top:10px"><button class="small" id="send-smp">发送</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">文件下载 <small>（全部内容一站提供，可在 PC 端下载后手动发送）</small></div>
+      <div class="downloads">
+        <table>
+          <tr><td><a href="payloads/kstuff.elf" download>kstuff.elf</a></td><td>kstuff-lite 1.11 · 内核补丁</td><td class="size">1.7 MB</td></tr>
+          <tr><td><a href="payloads/etaHEN-2.5B.bin" download>etaHEN-2.5B.bin</a></td><td>etaHEN 2.5B · AIO HEN</td><td class="size">4.5 MB</td></tr>
+          <tr><td><a href="payloads/shadowmountplus.elf" download>shadowmountplus.elf</a></td><td>ShadowMountPlus 1.7beta3 · 自动挂载</td><td class="size">2.3 MB</td></tr>
+          <tr><td><a href="payloads/elfldr-ps5-1360.elf" download>elfldr-ps5-1360.elf</a></td><td>elfldr · ELF 加载器（内核阶段自动使用）</td><td class="size">0.4 MB</td></tr>
+          <tr><td><a href="payloads/kexp_2026_05_25.bin" download>kexp_2026_05_25.bin</a></td><td>kexp · 内核 payload 引导（自动使用）</td><td class="size">18 KB</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <details>
+      <summary>使用说明</summary>
+      <ol>
+        <li>PS5 浏览器打开本页（固件 7.00 – 13.60），页面会自动开始漏洞利用；浏览器阶段偶发失败，卡住时刷新重试，内核阶段若死机则重启主机再来。</li>
+        <li>看到 <code>elfldr is listening on port 9021</code> 后，payload 面板会出现；默认勾选了自动加载，也可点击「一键加载全部」或单独发送。</li>
+        <li>加载顺序：<code>kstuff.elf</code>（内核补丁）→ <code>etaHEN-2.5B.bin</code>（HEN，屏幕弹出 Toolbox 通知）→ <code>shadowmountplus.elf</code>（挂载器，弹出 ShadowMount+ 通知）。</li>
+        <li>游戏镜像放到内置盘 <code>/data/etaHEN/games</code>、<code>/data/shadowmount</code> 或 USB 的扫描目录，ShadowMountPlus 每约 15 秒自动扫描挂载。</li>
+        <li>也可以用 PC 手动发送（主机 IP 替换）：Linux/macOS <code>nc 192.168.x.x 9021 &lt; kstuff.elf</code>；Windows PowerShell 见 <a href="https://github.com/etaHEN/etaHEN" style="color:#4fc3f7">etaHEN 仓库</a> 的 send_payload.ps1。</li>
+        <li>重启后一切还原，需要重新走一遍本页流程；稳定性提示与免责声明见仓库 README。</li>
+      </ol>
+    </details>
+
+    <details>
+      <summary>组件关系</summary>
+      <ul>
+        <li><b>Relapse 漏洞链</b>（WebKit 用户态 → aio_multi_wait 内核 UAF → 提权）：跑通后由 kexp 在内核上下文拉起 <b>elfldr</b> 并监听 9021。</li>
+        <li><b>elfldr</b>：接收 ELF 字节流并加载执行，是后续所有 payload 的入口（本页通过 ROP 直接向 127.0.0.1:9021 发送）。</li>
+        <li><b>kstuff-lite</b>：内核补丁集（FSELF/FPKG、挂载等），etaHEN 与 ShadowMountPlus 都依赖它运行。</li>
+        <li><b>etaHEN</b>：AIO HEN，自带 kstuff 集成与 fpkg 支持，提供 Toolbox、FTP(1337)、PKG 安装器(9090)、插件等。</li>
+        <li><b>ShadowMountPlus</b>：依赖 kstuff-lite v1.07+，自动扫描/挂载/安装游戏镜像，含 kstuff 自动暂停恢复逻辑。</li>
+      </ul>
+    </details>
+
+    <div class="footer">
+      <div>
+        Exploit: <a href="https://github.com/ntfargo/Relapse-Exploit">Relapse-Exploit</a>（Sonic_Iso, Jordy, ntfargo, ufm42, Dr. Yenyen 等）·
+        Payloads: <a href="https://github.com/EchoStretch/kstuff-lite">kstuff-lite</a> ·
+        <a href="https://github.com/etaHEN/etaHEN">etaHEN</a> ·
+        <a href="https://github.com/drakmor/ShadowMountPlus">ShadowMountPlus</a>
+      </div>
+      <div class="warn">仅供教育与研究用途，仅限在自有设备上使用；可能导致系统不稳定、数据丢失或账号封禁，风险自负。不支持盗版。</div>
+    </div>
+  </div>
+
+  <script src="./src/firmware.js"></script>
+  <script src="./src/main.js"></script>
+  <script src="./src/rop.js"></script>
+  <script src="./src/utils/syscalls.js"></script>
+  <script type="module" src="./src/site.js"></script>
+</body>
+</html>
