@@ -1,0 +1,50 @@
+# 百度网盘高速下载器（BaiduPCS-Go）— QNAP Container Station 粘贴即用
+# File Station 的云端挂载走百度 API 通道限速严重；本容器用 BaiduPCS-Go
+# 多线程直连下载，直接写入 NAS 共享目录。
+#
+# >>> 部署前改一处 <<<
+#   volumes 里左边 /share/CACHEDEV1_DATA/Public 换成你的共享目录
+#   （File Station 里右键文件夹→属性可看路径，如 /share/CACHEDEV1_DATA/Download）
+#
+# 部署后：Container Station → baidudl 容器 → 控制台（终端）里操作：
+#   1. 登录：电脑浏览器登录 pan.baidu.com → F12 → 应用→Cookie → 复制 BDUSS 和 STOKEN
+#      BaiduPCS-Go login -bduss=粘贴BDUSS -stoken=粘贴STOKEN
+#   2. 看文件：BaiduPCS-Go cd /   然后 BaiduPCS-Go ls（cd 进目录逐级看）
+#   3. 提速：BaiduPCS-Go config set -max_download_parallel 16
+#   4. 下载：BaiduPCS-Go download 文件名 --saveto /data
+#      （大文件多线程，会员/SVIP 带宽利用率远高于 File Station 挂载复制）
+services:
+  baidudl:
+    image: docker.m.daocloud.io/library/alpine:3.20
+    container_name: baidudl
+    restart: unless-stopped
+    environment:
+      - GH_PROXY=https://gh-proxy.com/
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        # 容器 DNS 钉公共上游（QNAP 容器内嵌 DNS 不可靠，同 psx-host 的坑）
+        echo 'nameserver 223.5.5.5' > /etc/resolv.conf
+        echo 'nameserver 119.29.29.29' >> /etc/resolv.conf
+        PKGS="curl unzip"
+        for m in mirrors.ustc.edu.cn mirrors.tuna.tsinghua.edu.cn mirrors.aliyun.com dl-cdn.alpinelinux.org; do
+        echo "https://$$m/alpine/v3.20/main" > /etc/apk/repositories
+        echo "https://$$m/alpine/v3.20/community" >> /etc/apk/repositories
+        echo "baidudl: apk via $$m"
+        apk add -U $$PKGS >/dev/null 2>&1 && break
+        done
+        command -v curl >/dev/null || { echo "baidudl: FATAL apk failed"; exit 1; }
+        if [ ! -x /usr/local/bin/BaiduPCS-Go ]; then
+        echo "baidudl: fetching BaiduPCS-Go..."
+        curl -fL --retry 3 --connect-timeout 10 --max-time 300 -o /tmp/pcs.zip "$${GH_PROXY}https://github.com/qjfoidnh/BaiduPCS-Go/releases/download/v3.9.7/BaiduPCS-Go-v3.9.7-linux-amd64.zip" || curl -fL --retry 3 --connect-timeout 10 --max-time 300 -o /tmp/pcs.zip "https://github.com/qjfoidnh/BaiduPCS-Go/releases/download/v3.9.7/BaiduPCS-Go-v3.9.7-linux-amd64.zip"
+        unzip -o /tmp/pcs.zip -d /tmp >/dev/null
+        mv /tmp/BaiduPCS-Go-v3.9.7-linux-amd64/BaiduPCS-Go /usr/local/bin/
+        chmod +x /usr/local/bin/BaiduPCS-Go
+        rm -rf /tmp/pcs.zip /tmp/BaiduPCS-Go-*
+        fi
+        echo "baidudl: ready — 打开本容器控制台执行 BaiduPCS-Go login"
+        tail -f /dev/null
+    volumes:
+      - /share/CACHEDEV1_DATA/Public:/data
