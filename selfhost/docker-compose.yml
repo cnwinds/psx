@@ -1,0 +1,31 @@
+# PS5 Relapse All-in-One 自托管 host（DNS + HTTPS）
+# 部署说明见本目录 README.md。
+# 需要按环境修改：ipv4_address / subnet / gateway / parent 网卡名。
+services:
+  ps5-host:
+    image: alpine:3.20
+    container_name: ps5-host
+    restart: unless-stopped
+    command: sh /srv/start.sh
+    networks:
+      lan:
+        ipv4_address: 192.168.1.250
+    volumes:
+      # start.sh / ps5-dnsmasq.conf 就在本目录
+      - ./start.sh:/srv/start.sh:ro
+      - ./ps5-dnsmasq.conf:/etc/ps5-dnsmasq.conf:ro
+      # 证书持久化（一年有效期，到期删除后重启即可重建）
+      - ./certs:/srv/certs
+      # 挂载整个仓库（all-in-one 页面 + 全部 payload）作为站点根目录
+      - ..:/srv/www:ro
+
+networks:
+  lan:
+    driver: macvlan
+    driver_opts:
+      # QTS 开了虚拟交换机是 ovs_eth0，没开是 eth0（SSH 进 NAS 用 ip addr 确认）
+      parent: ovs_eth0
+    ipam:
+      config:
+        - subnet: 192.168.1.0/24
+          gateway: 192.168.1.1
