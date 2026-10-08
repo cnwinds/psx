@@ -43,14 +43,19 @@ nslookup www.baidu.com <NAS的IP>                # 应正常解析（DNS 转发�
 浏览器打开 http://<NAS的IP>:8081/               # 应显示 all-in-one 页面
 ```
 
-**⑤ PS5 侧**：设置 → 网络 → 手动 DNS，首选填 **NAS 的 IP**（不是容器 IP），备用留空 → PS5 浏览器打开 `http://<NAS的IP>:8081/` → all-in-one 页面自动跑完漏洞链并自动发送三个 payload。
+**⑤ PS5 侧**：浏览器打开 `http://<NAS的IP>:8081/` → all-in-one 页面自动跑完漏洞链并自动发送三个 payload。
+
+**⑥ 更新屏蔽（可选，默认未启用）**：NAS 的 53 端口空闲时，取消 YAML 里两条 `53` 映射的注释重新部署，然后把 PS5 手动 DNS 首选填 **NAS 的 IP**、备用留空。53 被占用时见下方排错。
 
 ## 常见问题（按报错对号入座）
 
 - **`The "xxx" variable is not set` 警告**：旧版问题已修复（shell 的 `$` 全部写成 `$$`）。手工编辑脚本时注意保留 `$$`。
 - **`failed to pull image ... registry-1.docker.io`（拉镜像超时）**：镜像已默认用国内源 `docker.xuanyuan.me`（实测匿名可拉）。**勿用 daocloud——已拒绝匿名拉取官方镜像**。备选 `docker.1ms.run`。
 - **`curl: (XX) ...` 下载站点失败（卡在 downloading）**：GitHub 直连不通。把 `environment:` 里 `GH_PROXY=` 填上加速前缀（以 `/` 结尾），如 `https://gh-proxy.com/`（加速站时效性强，失效换一个），删掉 `ps5-www` 卷后重新部署。
-- **端口 53 冲突**（部署报 port allocated / address in use）：NAS 上已有 DNS 类应用（AdGuard Home / Pi-hole 等）。要么停掉它，要么放弃 DNS 屏蔽（删掉 `ports:` 里两条 53 映射，站点照常可用，但需另想办法防更新）。
+- **端口 53 冲突**（`bind: address already in use`，53 映射已默认注释）：NAS 上已有 DNS 服务。三类处理：
+  1. **是 AdGuard Home / Pi-hole 等容器**（Container Station → 容器 页可看到）→ 不用本容器的 DNS，直接在它的管理界面加屏蔽规则：`ps5.update.playstation.net`、`ps4.update.playstation.net`、`feu01.ps4.update.playstation.net` 全部拒绝解析，PS5 的 DNS 指向它即可，效果等同；
+  2. **是 QTS 虚拟交换机自带的 dnsmasq**（「网络与虚拟交换机 → 虚拟交换机」显示已启用）→ 若你不需要虚拟交换机（无 VM/直连容器依赖），停用后取消 53 注释；需要保留则走方案 1 或 3；
+  3. **暂时用社区公共屏蔽 DNS**：PS5 手动 DNS 填 `45.56.67.85`（备用留空）——它本身屏蔽索尼更新（代价：依赖第三方，解析全走它）。
 - **`failed to create the macvlan port: device or resource busy`**（macvlan 版）：QTS 网络栈占用了 eth0（虚拟交换机/网桥模式）。查「网络与虚拟交换机 → 接口」确认网卡名：把 parent 换成实际存在的空闲物理口（eth1 等）；若所有口都被 QTS 管理，请用主推 Bridge 版。
 - **`invalid subinterface vlan name XXX`**（macvlan 版）：parent 写的接口名不存在，换成实际网卡名。
 - **PS5 打开页面空白/证书错误**：Bridge 版走 HTTP，不应有证书问题；确认浏览器输的是 `http://`（不是 https）。
