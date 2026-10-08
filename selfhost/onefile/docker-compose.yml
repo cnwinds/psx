@@ -12,8 +12,10 @@
 # 注：脚本里的 shell 变量一律写成 $$（compose 会把单个 $ 当作自己的变量替换掉）。
 services:
   ps5-host:
-    # 国内拉不动 Docker Hub 时用 daocloud 镜像；能直连可换回 docker.io/library/alpine:3.20
-    image: docker.m.daocloud.io/library/alpine:3.20
+    # 镜像源（实测 2026-10 匿名可拉）：docker.xuanyuan.me
+    # 备选：docker.1ms.run / 能直连 Docker Hub 时用官方 docker.io/library/alpine:3.20
+    # （daocloud 已拒绝匿名拉取官方镜像，勿用）
+    image: docker.xuanyuan.me/library/alpine:3.20
     container_name: ps5-host
     restart: unless-stopped
     environment:

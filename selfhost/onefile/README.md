@@ -56,7 +56,7 @@ curl -k https://192.168.1.250/ | head              # 应返回 all-in-one 页面
 - **`The "xxx" variable is not set` 警告**
   旧版问题，已修复（脚本里 shell 的 `$` 全部写成 `$$`）。若你手工编辑过脚本，注意保留 `$$`。
 - **`failed to pull image ... registry-1.docker.io`（拉镜像超时）**
-  国内访问 Docker Hub 不稳。镜像已默认用国内源 `docker.m.daocloud.io`；仍失败可换 `docker.1ms.run/library/alpine:3.20` 等，或在 Container Station 首选项里配置 Registry 镜像。
+  国内访问 Docker Hub 不稳。镜像已默认用国内源 `docker.xuanyuan.me`；备选 `docker.1ms.run/library/alpine:3.20`（daocloud 已拒绝匿名拉取，勿用），或在 Container Station 首选项里配置 Registry 镜像。
 - **`curl: (XX) ...` 下载站点失败（首次启动卡在 downloading）**
   GitHub 直连不通。把 `environment:` 里的 `GH_PROXY=` 填上加速前缀（以 `/` 结尾），例如 `https://gh-proxy.com/`（加速站时效性强，失效就换一个），删掉 `ps5-www` 卷后重新部署。
 - **NAS 自己的浏览器打不开容器 IP**
