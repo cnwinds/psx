@@ -1,37 +1,39 @@
-# PS5 Relapse All-in-One — 单文件部署（QNAP Container Station 直接粘贴即可，无需 SSH）
+# PS5 Relapse All-in-One — 单文件部署 · Bridge 版（QNAP Container Station 粘贴即用）
 # 使用方法见 selfhost/onefile/README.md。
 # 前提：github.com/cnwinds/psx 仓库保持 public（站点全部内容来自它的 tarball）。
 #
-# >>> 只需修改下面 4 处网络参数 <<<
-#   1. parent:      网卡名，先用 eth0；报 invalid subinterface 就换 eth1 / ovs_eth0
-#                   （QTS「网络与虚拟交换机 → 接口」里能看到 Linux 网卡名）
-#   2. subnet:      你的网段
-#   3. gateway:     你的网关
-#   4. ipv4_address: 给容器的固定 IP（与网段一致，避开已占用地址）
+# 这是主推版本：不依赖 macvlan（QNAP 上常因 eth0 被系统占用而报
+# "failed to create the macvlan port: device or resource busy"），
+# 只需 NAS 的 UDP/53 端口和 HTTP 端口（默认映射到 8081）空闲。
 #
-# 注：脚本里的 shell 变量一律写成 $$（compose 会把单个 $ 当作自己的变量替换掉）。
+# >>> 部署后 PS5 侧 <<<
+#   - 网络 → 手动 DNS：首选填 NAS 的内网 IP（不是 192.168.1.250！就是 NAS 自己的 IP），备用留空
+#   - 浏览器打开 http://<NAS的IP>:8081/ 即 all-in-one 页面
+#   - 更新屏蔽照常生效（DNS 在本容器）
+#
+# 可改参数：
+#   - "8081:80" 左边是 NAS 上对外暴露的 HTTP 端口，与 QTS(8080)等冲突时改掉
+#   - GH_PROXY：GitHub 直连慢/失败时填加速前缀（以 / 结尾），如 https://gh-proxy.com/
 services:
   ps5-host:
-    # 镜像源（实测 2026-10 匿名可拉）：docker.xuanyuan.me
-    # 备选：docker.1ms.run / 能直连 Docker Hub 时用官方 docker.io/library/alpine:3.20
+    # 镜像源（实测 2026-10 匿名可拉）；备选 docker.1ms.run / 官方 docker.io/library/alpine:3.20
     # （daocloud 已拒绝匿名拉取官方镜像，勿用）
     image: docker.xuanyuan.me/library/alpine:3.20
     container_name: ps5-host
     restart: unless-stopped
     environment:
-      # GitHub 直连慢/失败时填镜像加速前缀（必须以 / 结尾），如：
-      # - GH_PROXY=https://gh-proxy.com/
       - GH_PROXY=
+    ports:
+      - "53:53/udp"
+      - "53:53/tcp"
+      - "8081:80"
     command:
       - sh
       - -c
       - |
         set -e
-        # ---- PS5 all-in-one host（单文件版，无需 NAS 上的任何本地文件）----
-        apk add -U dnsmasq nginx openssl curl >/dev/null || { sed -i 's#dl-cdn.alpinelinux.org#mirrors.ustc.edu.cn#g' /etc/apk/repositories; apk add -U dnsmasq nginx openssl curl >/dev/null; }
-
-        LAN_IP=$$(ip -4 addr show dev eth0 | awk '/inet /{split($$2,a,"/"); print a[1]; exit}')
-        echo "ps5-host: container IP = $$LAN_IP (PS5 首选 DNS 填这个，备用留空)"
+        # ---- PS5 all-in-one host（bridge 版：DNS 屏蔽更新 + HTTP 站点）----
+        apk add -U dnsmasq nginx curl >/dev/null || { sed -i 's#dl-cdn.alpinelinux.org#mirrors.ustc.edu.cn#g' /etc/apk/repositories; apk add -U dnsmasq nginx curl >/dev/null; }
 
         # ---- 站点：首启从公共仓库下载完整内容（页面 + 漏洞链 + payload 一步到位）----
         if [ ! -f /srv/www/.site-ready ]; then
@@ -42,14 +44,7 @@ services:
         echo "ps5-host: site ready (page + exploit + payloads)"
         fi
 
-        # ---- 自签证书（SAN 必须有；剩余不足 7 天才重建）----
-        mkdir -p /srv/certs
-        if [ ! -s /srv/certs/cert.pem ] || [ ! -s /srv/certs/key.pem ] || ! openssl x509 -checkend 604800 -noout -in /srv/certs/cert.pem >/dev/null 2>&1; then
-        openssl req -x509 -newkey rsa:2048 -nodes -days 365 -keyout /srv/certs/key.pem -out /srv/certs/cert.pem -subj '/CN=manuals.playstation.net' -addext 'subjectAltName=DNS:manuals.playstation.net'
-        echo "ps5-host: generated new certificate (365 days)"
-        fi
-
-        # ---- DNS：接管用户指南入口 + NXDOMAIN 屏蔽更新 ----
+        # ---- DNS：NXDOMAIN 屏蔽索尼更新（bridge 版不接管用户指南入口）----
         # 注：下面 heredoc 内容按 shell 语义需要顶格（勿加缩进）
         cat > /etc/ps5-dnsmasq.conf <<DNS_EOF
         no-resolv
@@ -57,23 +52,15 @@ services:
         server=119.29.29.29
         domain-needed
         cache-size=1000
-        local=/manuals.playstation.net/
-        address=/manuals.playstation.net/$$LAN_IP
         address=/ps5.update.playstation.net/
         address=/ps4.update.playstation.net/
         address=/feu01.ps4.update.playstation.net/
         DNS_EOF
 
+        # ---- HTTP：静态站（PS5 浏览器直接访问 http://<NAS IP>:8081/）----
         cat > /etc/nginx/http.d/default.conf <<'NGINX_EOF'
         server {
         listen 80 default_server;
-        location /document { return 302 /; }
-        location / { root /srv/www; index index.html; try_files $$uri $$uri/ /index.html; }
-        }
-        server {
-        listen 443 ssl default_server;
-        ssl_certificate     /srv/certs/cert.pem;
-        ssl_certificate_key /srv/certs/key.pem;
         location /document { return 302 /; }
         location / { root /srv/www; index index.html; try_files $$uri $$uri/ /index.html; }
         }
@@ -81,25 +68,10 @@ services:
 
         dnsmasq --test -C /etc/ps5-dnsmasq.conf
         dnsmasq --no-daemon -C /etc/ps5-dnsmasq.conf &
-        echo "ps5-host: all services up — DNS 53 / HTTP 80 / HTTPS 443"
+        echo "ps5-host: all services up — DNS 53 (update-blocked) / HTTP 8081"
         exec nginx -g "daemon off;"
-    networks:
-      lan:
-        ipv4_address: 192.168.1.250
     volumes:
-      - ps5-certs:/srv/certs
       - ps5-www:/srv/www
 
-networks:
-  lan:
-    driver: macvlan
-    driver_opts:
-      parent: eth0
-    ipam:
-      config:
-        - subnet: 192.168.1.0/24
-          gateway: 192.168.1.1
-
 volumes:
-  ps5-certs:
   ps5-www:
