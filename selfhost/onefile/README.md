@@ -49,6 +49,21 @@ curl -k https://192.168.1.250/ | head              # 应返回 all-in-one 页面
 
 **⑤ PS5 侧**：设置 → 网络 → 手动 DNS，首选 `192.168.1.250`，**备用留空** → 打开 设置 → 用户指南 → 证书警告选**继续** → all-in-one 页面自动跑完漏洞链并自动发送三个 payload。
 
+## 常见问题（按报错对号入座）
+
+- **`failed to create network ... invalid subinterface vlan name ovs_eth0`**
+  NAS 上没有这个网卡名。默认已改为 `eth0`；仍报错就换 `eth1`（双网卡机器）或 `ovs_eth0`（开了虚拟交换机）。网卡名可在 QTS「网络与虚拟交换机 → 接口」里看到（eth0 / eth1 / …）。
+- **`The "xxx" variable is not set` 警告**
+  旧版问题，已修复（脚本里 shell 的 `$` 全部写成 `$$`）。若你手工编辑过脚本，注意保留 `$$`。
+- **`failed to pull image ... registry-1.docker.io`（拉镜像超时）**
+  国内访问 Docker Hub 不稳。镜像已默认用国内源 `docker.m.daocloud.io`；仍失败可换 `docker.1ms.run/library/alpine:3.20` 等，或在 Container Station 首选项里配置 Registry 镜像。
+- **`curl: (XX) ...` 下载站点失败（首次启动卡在 downloading）**
+  GitHub 直连不通。把 `environment:` 里的 `GH_PROXY=` 填上加速前缀（以 `/` 结尾），例如 `https://gh-proxy.com/`（加速站时效性强，失效就换一个），删掉 `ps5-www` 卷后重新部署。
+- **NAS 自己的浏览器打不开容器 IP**
+  macvlan 的已知隔离特性：宿主机（NAS 本机）访问不了容器，**其他设备（电脑/PS5）可以**。验证请从电脑访问。
+- **PS5 打开用户指南是白屏/证书错误无法继续**
+  先从电脑 `curl -k https://<容器IP>/` 确认站点正常；证书警告页面选「继续」是正常流程。
+
 ## 注意事项
 
 - **仓库必须保持 public**：站点全部内容来自 `github.com/cnwinds/psx` 的 tarball，仓库转私有后新部署的容器将无法下载（已下载的命名卷不受影响）。

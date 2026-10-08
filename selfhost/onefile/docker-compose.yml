@@ -3,31 +3,39 @@
 # 前提：github.com/cnwinds/psx 仓库保持 public（站点全部内容来自它的 tarball）。
 #
 # >>> 只需修改下面 4 处网络参数 <<<
-#   1. parent:  QTS 开了虚拟交换机填 ovs_eth0，没开填 eth0
-#   2. subnet:  你的网段
-#   3. gateway: 你的网关
+#   1. parent:      网卡名，先用 eth0；报 invalid subinterface 就换 eth1 / ovs_eth0
+#                   （QTS「网络与虚拟交换机 → 接口」里能看到 Linux 网卡名）
+#   2. subnet:      你的网段
+#   3. gateway:     你的网关
 #   4. ipv4_address: 给容器的固定 IP（与网段一致，避开已占用地址）
+#
+# 注：脚本里的 shell 变量一律写成 $$（compose 会把单个 $ 当作自己的变量替换掉）。
 services:
   ps5-host:
-    image: alpine:3.20
+    # 国内拉不动 Docker Hub 时用 daocloud 镜像；能直连可换回 docker.io/library/alpine:3.20
+    image: docker.m.daocloud.io/library/alpine:3.20
     container_name: ps5-host
     restart: unless-stopped
+    environment:
+      # GitHub 直连慢/失败时填镜像加速前缀（必须以 / 结尾），如：
+      # - GH_PROXY=https://gh-proxy.com/
+      - GH_PROXY=
     command:
       - sh
       - -c
       - |
         set -e
         # ---- PS5 all-in-one host（单文件版，无需 NAS 上的任何本地文件）----
-        apk add -U dnsmasq nginx openssl curl >/dev/null
+        apk add -U dnsmasq nginx openssl curl >/dev/null || { sed -i 's#dl-cdn.alpinelinux.org#mirrors.ustc.edu.cn#g' /etc/apk/repositories; apk add -U dnsmasq nginx openssl curl >/dev/null; }
 
-        LAN_IP=$(ip -4 addr show dev eth0 | awk '/inet /{split($2,a,"/"); print a[1]; exit}')
-        echo "ps5-host: container IP = $LAN_IP (PS5 首选 DNS 填这个，备用留空)"
+        LAN_IP=$$(ip -4 addr show dev eth0 | awk '/inet /{split($$2,a,"/"); print a[1]; exit}')
+        echo "ps5-host: container IP = $$LAN_IP (PS5 首选 DNS 填这个，备用留空)"
 
         # ---- 站点：首启从公共仓库下载完整内容（页面 + 漏洞链 + payload 一步到位）----
         if [ ! -f /srv/www/.site-ready ]; then
         echo "ps5-host: downloading all-in-one site (first boot)..."
         mkdir -p /srv/www
-        curl -fsSL https://github.com/cnwinds/psx/archive/refs/heads/main.tar.gz | tar -xz -C /srv/www --strip-components=1
+        curl -fsSL --retry 3 --connect-timeout 15 "$${GH_PROXY}https://github.com/cnwinds/psx/archive/refs/heads/main.tar.gz" | tar -xz -C /srv/www --strip-components=1
         touch /srv/www/.site-ready
         echo "ps5-host: site ready (page + exploit + payloads)"
         fi
@@ -48,7 +56,7 @@ services:
         domain-needed
         cache-size=1000
         local=/manuals.playstation.net/
-        address=/manuals.playstation.net/$LAN_IP
+        address=/manuals.playstation.net/$$LAN_IP
         address=/ps5.update.playstation.net/
         address=/ps4.update.playstation.net/
         address=/feu01.ps4.update.playstation.net/
@@ -58,14 +66,14 @@ services:
         server {
         listen 80 default_server;
         location /document { return 302 /; }
-        location / { root /srv/www; index index.html; try_files $uri $uri/ /index.html; }
+        location / { root /srv/www; index index.html; try_files $$uri $$uri/ /index.html; }
         }
         server {
         listen 443 ssl default_server;
         ssl_certificate     /srv/certs/cert.pem;
         ssl_certificate_key /srv/certs/key.pem;
         location /document { return 302 /; }
-        location / { root /srv/www; index index.html; try_files $uri $uri/ /index.html; }
+        location / { root /srv/www; index index.html; try_files $$uri $$uri/ /index.html; }
         }
         NGINX_EOF
 
@@ -84,7 +92,7 @@ networks:
   lan:
     driver: macvlan
     driver_opts:
-      parent: ovs_eth0
+      parent: eth0
     ipam:
       config:
         - subnet: 192.168.1.0/24
