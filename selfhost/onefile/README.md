@@ -4,9 +4,7 @@
 
 | 需要的东西 | 来源 | 时机 |
 |---|---|---|
-| 漏洞链（offsets/src/elfldr/kexp） | 公共仓库 [cnwinds/Relapse-Exploit](https://github.com/cnwinds/Relapse-Exploit) | 容器首次启动下载 |
-| kstuff.elf / etaHEN / shadowmountplus | 官方 GitHub Releases（与本仓库 payloads/ 同版本） | 容器首次启动下载 |
-| all-in-one 页面（index.html 等 4 个文件） | **直接内嵌在 YAML 里** | 每次启动重写 |
+| 全部站点内容（all-in-one 页面 + 漏洞链 + 三个 payload） | 公共仓库 [cnwinds/psx](https://github.com/cnwinds/psx) 的 tarball | 容器首次启动下载（约 9 MB） |
 | DNS 劫持 + 更新屏蔽 + 自签证书 | dnsmasq + nginx + openssl（apk 安装） | 每次启动 |
 
 站点内容和证书放在 docker **命名卷**里（`ps5-www` / `ps5-certs`），重启不重复下载；删除容器+卷则全部重来。
@@ -15,7 +13,7 @@
 
 **① 打开 Container Station → 应用程序（Application）→ 创建 → 粘贴 YAML**：把本目录 [`docker-compose.yml`](docker-compose.yml) 的内容整份贴进去。
 
-**② 只改 4 处网络参数**（都在文件末尾，有 `>>>` 注释标出）：
+**② 只改 4 处网络参数**（都在文件里，有 `>>>` 注释标出）：
 
 ```yaml
     networks:
@@ -36,8 +34,8 @@ DNS 劫持地址**不用改**——脚本启动时自动读取容器自身 IP �
 
 ```
 ps5-host: container IP = 192.168.1.250 (PS5 首选 DNS 填这个，备用留空)
-ps5-host: downloading exploit site (first boot)...
-ps5-host: site ready
+ps5-host: downloading all-in-one site (first boot)...
+ps5-host: site ready (page + exploit + payloads)
 ps5-host: all services up — DNS 53 / HTTP 80 / HTTPS 443
 ```
 
@@ -53,10 +51,10 @@ curl -k https://192.168.1.250/ | head              # 应返回 all-in-one 页面
 
 ## 注意事项
 
-- **首次启动需要外网**（下载漏洞链和 payload，约 11 MB）；之后离线也能起。
+- **仓库必须保持 public**：站点全部内容来自 `github.com/cnwinds/psx` 的 tarball，仓库转私有后新部署的容器将无法下载（已下载的命名卷不受影响）。
+- **首次启动需要外网**（GitHub 可达，下载约 9 MB）；之后离线也能起。
 - **macvlan 是必须的，不是可选项**：用户指南入口访问的是 `manuals.playstation.net` 的标准 80/443 端口，桥接模式做端口映射会撞上 QTS 自己占用的 443——所以必须让容器拥有独立内网 IP。
 - **绝不暴露公网**：53/80/443 不要在路由器做端口转发。
-- 证书一年有效期，剩余不足 7 天时重启容器自动重建（`docker compose restart`，或 Container Station 里重启容器）。
+- 证书一年有效期，剩余不足 7 天时重启容器自动重建（Container Station 里重启即可）。
 - NAS 停机 = PS5 解析不了任何域名（含更新检查）；恢复上网把 PS5 DNS 改回自动，改回期间别让它自动升级。
-- 想升级 payload 版本：改 `docker-compose.yml` 里对应的三行下载 URL，删掉 `ps5-www` 卷重新部署；或直接用 [selfhost/](../README.md) 完整版。
-- 本文件由 [`gen.py`](gen.py) 生成——修改仓库前端文件后，在 `selfhost/onefile/` 下运行 `python gen.py` 重新生成（生成器自动校验内嵌内容与仓库文件一致）。
+- **更新站点内容**（改了页面或升级 payload 后）：更新 GitHub 仓库 → 删除 `ps5-www` 卷 → 重新部署（或用 [selfhost/](../README.md) 完整版直接挂载仓库）。

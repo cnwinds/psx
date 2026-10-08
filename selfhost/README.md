@@ -4,7 +4,7 @@
 
 ## 两种部署方式选一
 
-- **[onefile/ 单文件版](onefile/README.md)** —— NAS 不方便 SSH 的选这个：一个 compose YAML 粘贴进 Container Station 即可，页面文件内嵌、其余启动时从公共源下载，只需改 4 行网络参数。
+- **[onefile/ 单文件版](onefile/README.md)** —— NAS 不方便 SSH 的选这个：一个 compose YAML 粘贴进 Container Station 即可，站点全部内容（页面+漏洞链+payload）首启时从公共的 [cnwinds/psx](https://github.com/cnwinds/psx) 仓库下载，只需改 4 行网络参数。
 - **本目录完整版（下文）** —— 可以 SSH 的选这个：挂载仓库本体，内容与仓库完全同步，改起来最直接。
 
 ## 为什么全套自建
