@@ -22,7 +22,7 @@ PS5 浏览器打开本页
 | elfldr（已含） | 监听 9021，接收并执行 ELF | 由漏洞链自动拉起 | 随 Relapse 仓库 |
 | kstuff.elf | 内核补丁：FSELF / FPKG、挂载支持 | 仅需内核漏洞 | [EchoStretch/kstuff-lite](https://github.com/EchoStretch/kstuff-lite) v1.11（FW 1.00 – 13.60） |
 | etaHEN-2.5B.bin | AIO HEN：Toolbox、FTP(1337)、PKG 安装器(9090)、插件、自带 kstuff 集成 | 端口 9021 | [etaHEN/etaHEN](https://github.com/etaHEN/etaHEN) 2.5B |
-| shadowmountplus.elf | 自动扫描 / 挂载 / 安装游戏镜像（.ffpkg / .exfat / .ffpfs） | kstuff-lite v1.07+ 运行中 | [drakmor/ShadowMountPlus](https://github.com/drakmor/ShadowMountPlus) 1.7beta3 |
+| shadowmountplus.elf | 自动扫描 / 挂载 / 安装游戏镜像（.ffpkg / .exfat / .ffpfs） | kstuff-lite v1.07+ 运行中 | [drakmor/ShadowMountPlus](https://github.com/drakmor/ShadowMountPlus) 1.7beta4（RetroArch 移植版要求 beta4+ 才能访问 USB 盘） |
 
 加载顺序说明：kstuff 先打内核补丁；etaHEN 在其上构建 HEN 功能（也内嵌了自己的 kstuff）；ShadowMountPlus 需要 kstuff 处于运行状态，并自带 kstuff 自动暂停/恢复逻辑（游戏启动时暂停 kstuff、退出时恢复）。
 
@@ -61,11 +61,43 @@ Windows 可用 [etaHEN 仓库](https://github.com/etaHEN/etaHEN) 的 `send_paylo
 - 默认扫描内置盘 `/data/etaHEN/games`、`/data/shadowmount` 等路径，约每 15 秒自动扫描；可用 `/data/shadowmount/config.ini` 的 `scanpath=` 自定义。
 - 配置详见 [ShadowMountPlus README](https://github.com/drakmor/ShadowMountPlus#readme)。
 
+## 街机模拟器（RetroArch PS5 移植版）
+
+破解态下可玩街机/复古游戏：[mihawk-99/PS5_RetroArch](https://github.com/mihawk-99/PS5_RetroArch)（原生移植，33 核心 44 平台），街机用 **FBNeo**（CPS1/CPS2/Neo Geo/世嘉 System16 等，推荐）或 **MAME 0.289**（ROM 集必须匹配该版本）核心。
+
+安装（二选一）：
+
+- **商店安装（推荐）**：etaHEN Toolbox → 安装 Homebrew Store → 商店里直接装 RetroArch（PPSA99169），全程主机上完成
+- **手动安装**：从 [Releases](https://github.com/mihawk-99/PS5_RetroArch/releases) 下载解压，把 `PPSA99169` 文件夹通过 etaHEN 的 FTP（端口 1337）传到 `/data/homebrew/` 下
+
+注意：
+
+- **需要 ShadowMountPlus 1.7beta4+**（本仓库已打包）才能读到 USB 盘和扩展存储
+- ROM 放 USB 盘（`/mnt/usb0` 起）或内置 `content/` 目录；街机 ROM 集：FBNeo 用对应版本的 ROM set（网上搜 "FBNeo romset"），MAME 必须是 **0.289 版**匹配集
+- 部分 BIOS 放 `system/` 相应子目录，只能走 FTP 上传
+- RetroArch 自带 WebUI：`http://<PS5的IP>:6769`（仅内网使用）
+
 ## 稳定性提示
 
 - WebKit 阶段可能需要多次尝试，浏览器卡死就刷新页面。
 - 内核阶段可能挂起或 panic 主机，遇到就重启再试。
 - 每次重启后 kstuff / etaHEN / ShadowMountPlus 均需重新加载（重跑本页流程即可）。
+
+## 街机模拟器（RetroArch PS5 移植版）
+
+破解态下可玩街机/复古游戏：[mihawk-99/PS5_RetroArch](https://github.com/mihawk-99/PS5_RetroArch)（原生移植，33 核心 44 平台），街机用 **FBNeo**（CPS1/CPS2/Neo Geo/世嘉 System16 等，推荐）或 **MAME 0.289**（ROM 集必须匹配该版本）核心。
+
+安装（二选一）：
+
+- **商店安装（推荐）**：etaHEN Toolbox → 安装 Homebrew Store → 商店里直接装 RetroArch（PPSA99169），全程主机上完成
+- **手动安装**：从 [Releases](https://github.com/mihawk-99/PS5_RetroArch/releases) 下载解压，把 `PPSA99169` 文件夹通过 etaHEN 的 FTP（端口 1337）传到 `/data/homebrew/` 下
+
+注意：
+
+- **需要 ShadowMountPlus 1.7beta4+**（本仓库已打包）才能读到 USB 盘和扩展存储
+- ROM 放 USB 盘（`/mnt/usb0` 起）或内置 `content/` 目录；街机 ROM 集：FBNeo 用对应版本的 ROM set（网上搜 "FBNeo romset"），MAME 必须是 **0.289 版**匹配集
+- 部分 BIOS 放 `system/` 相应子目录，只能走 FTP 上传
+- RetroArch 自带 WebUI：`http://<PS5的IP>:6769`（仅内网使用）
 
 ## 稳定性提示之外的免责声明
 

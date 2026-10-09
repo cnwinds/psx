@@ -24,7 +24,7 @@ const PAYLOADS = [
   {
     file: "shadowmountplus.elf",
     id: "smp",
-    title: "ShadowMountPlus 1.7beta3",
+    title: "ShadowMountPlus 1.7beta4",
     desc: "游戏镜像自动挂载（需要 kstuff 运行中）",
     source: "https://github.com/drakmor/ShadowMountPlus",
   },
