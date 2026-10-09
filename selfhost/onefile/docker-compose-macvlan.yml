@@ -12,9 +12,9 @@
 # 注：脚本里的 shell 变量一律写成 $$（compose 会把单个 $ 当作自己的变量替换掉）。
 services:
   ps5-host:
-    # 镜像源：daocloud（用户 NAS 实测可拉）
+    # 镜像源：1ms.run（无白名单，第三方镜像也可拉）
     # 若报 denied/pull 失败，备选：docker.xuanyuan.me / docker.1ms.run（均实测匿名可拉）
-    image: docker.m.daocloud.io/library/alpine:3.20
+    image: docker.1ms.run/library/alpine:3.20
     container_name: ps5-host
     restart: unless-stopped
     environment:

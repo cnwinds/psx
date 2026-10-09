@@ -3,7 +3,7 @@
 # 需要按环境修改：ipv4_address / subnet / gateway / parent 网卡名。
 services:
   ps5-host:
-    image: alpine:3.20
+    image: docker.1ms.run/library/alpine:3.20
     container_name: ps5-host
     restart: unless-stopped
     command: sh /srv/start.sh

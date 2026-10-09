@@ -15,7 +15,7 @@
 #      （大文件多线程，会员/SVIP 带宽利用率远高于 File Station 挂载复制）
 services:
   baidudl:
-    image: docker.m.daocloud.io/library/alpine:3.20
+    image: docker.1ms.run/library/alpine:3.20
     container_name: baidudl
     restart: unless-stopped
     environment:

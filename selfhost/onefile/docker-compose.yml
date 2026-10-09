@@ -16,8 +16,8 @@
 #   - GH_PROXY：GitHub 直连慢/失败时填加速前缀（以 / 结尾），如 https://gh-proxy.com/
 services:
   ps5-host:
-    # 镜像源：daocloud（用户 NAS 实测可拉）；备选 docker.xuanyuan.me / docker.1ms.run
-    image: docker.m.daocloud.io/library/alpine:3.20
+    # 镜像源：1ms.run；备选 docker.xuanyuan.me（轩辕）
+    image: docker.1ms.run/library/alpine:3.20
     container_name: ps5-host
     restart: unless-stopped
     environment:
