@@ -1,0 +1,31 @@
+# 百度网盘官方客户端 · 网页桌面版（KasmVNC）— QNAP Container Station 粘贴即用
+# 浏览器里直接操作官方客户端界面：扫码登录、点选文件下载，落盘到 NAS 共享目录。
+# （命令行多线程版见 baidudl-compose.yml；本版胜在操作友好+官方客户端兼容性）
+#
+# >>> 部署前改两处 <<<
+#   volumes 左边的路径换成你的（建议先在 File Station 建好 baidunetdisk 文件夹）
+#
+# 部署后：
+#   1. 用 Chrome/Edge 打开 http://<NAS的IP>:8280 （KasmVNC 对 Firefox 支持差）
+#   2. 浏览器里就是百度网盘客户端界面 → 扫码登录
+#   3. 选文件下载，默认下载目录就是映射出来的 downloads 文件夹
+#   注意：仅限内网使用，绝不在路由器上暴露 8280/8281。
+services:
+  baidunetdisk:
+    # 镜像源：daocloud（NAS 实测可拉）；失败换 docker.xuanyuan.me/ 或官方 docker.io/ 前缀
+    image: docker.m.daocloud.io/yucatovo/baidunetdisk-docker:latest
+    container_name: baidunetdisk
+    restart: unless-stopped
+    # 上游镜像建议：避免 file descriptor 相关报错
+    security_opt:
+      - seccomp:unconfined
+    environment:
+      - TZ=Asia/Shanghai
+      # 需要给网页加密码时取消注释（默认用户名 abc）
+      # - PASSWORD=改成你的密码
+    ports:
+      - "8280:8080"   # 浏览器访问（HTTP）
+      - "8281:8181"   # HTTPS 备用（无损模式）
+    volumes:
+      - /share/CACHEDEV1_DATA/baidunetdisk/config:/config
+      - /share/CACHEDEV1_DATA/baidunetdisk/downloads:/config/baidunetdiskdownload

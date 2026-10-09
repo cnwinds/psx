@@ -67,6 +67,13 @@ curl -k https://192.168.1.250/ | head              # 应返回 exploit 页面 HT
 
 Container Station 若支持 LXD，可建 Ubuntu 容器直接跑 flex36ty 的 `setup-ps5.sh <容器IP>`（它依赖 systemd，所以 Docker 容器里跑不了）。但它没有更新屏蔽，且只含官方 Relapse 文件（无本仓库的三个 payload 与页面自动发送）——想要完整体验仍推荐上面的 compose 方案。
 
+## 百度网盘工具（可选）
+
+- [baidunetdisk-compose.yml](baidunetdisk-compose.yml) — **网页版官方客户端**（推荐）：浏览器里直接操作百度网盘桌面客户端，扫码登录、点选下载，文件落 NAS 共享目录。
+- [baidudl-compose.yml](baidudl-compose.yml) — **命令行高速版**（BaiduPCS-Go 多线程）：在容器控制台用 BDUSS 登录，适合大批量/脚本化下载；两个可以并存。
+
+File Station 自带的百度盘挂载走开放平台 API 通道，限速严重，仅适合浏览小文件，不建议用来下载大文件。
+
 ## 文件说明
 
 | 文件 | 作用 |
