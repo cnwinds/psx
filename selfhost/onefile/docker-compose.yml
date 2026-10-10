@@ -24,8 +24,14 @@ services:
       # GitHub 下载加速前缀（以 / 结尾）。国内网络直连 GitHub 常见卡死，默认走加速。
       # 加速站失效可换 https://ghproxy.net/ 或改为空串=直连。
       - GH_PROXY=https://gh-proxy.com/
+      # 用户指南/健康与安全指南入口（可选）：填这台电脑的局域网 IP（如 192.168.1.23），
+      # PS5 DNS 指向电脑后，打开"用户指南"会自动落到破解页（需 443 端口映射在下方启用）。
+      # 留空 = 不启用指南入口，索尼域名照常全拦。
+      - GUIDE_IP=
     ports:
       - "8010:80"
+      # 用户指南入口用（GUIDE_IP 已填时生效）；电脑上 443 被占时注释掉这行
+      - "443:443"
       # ↓↓ 更新屏蔽已默认启用（本配置只需 UDP 53，无 DNSSEC/大响应，不依赖 TCP）。
       #   若部署报 "bind: address already in use"（NAS 的 53/udp 被占），
       #   注释掉 UDP 那行重新部署即可，站点不受影响；处理办法见 README「常见问题」。
@@ -41,14 +47,14 @@ services:
         echo 'nameserver 223.5.5.5' > /etc/resolv.conf
         echo 'nameserver 119.29.29.29' >> /etc/resolv.conf
         # apk 源依次重试（国内源优先），失败显式 FATAL（busybox 的 set -e 会吞 OR 兜底块的退出码）
-        PKGS="dnsmasq nginx curl"
+        PKGS="dnsmasq nginx openssl curl"
         for m in mirrors.ustc.edu.cn mirrors.tuna.tsinghua.edu.cn mirrors.aliyun.com dl-cdn.alpinelinux.org; do
         echo "https://$$m/alpine/v3.20/main" > /etc/apk/repositories
         echo "https://$$m/alpine/v3.20/community" >> /etc/apk/repositories
         echo "ps5-host: apk via $$m"
         apk add -U $$PKGS >/dev/null 2>&1 && break
         done
-        command -v nginx >/dev/null && command -v dnsmasq >/dev/null && command -v curl >/dev/null || { echo "ps5-host: FATAL all apk mirrors failed"; exit 1; }
+        command -v nginx >/dev/null && command -v dnsmasq >/dev/null && command -v curl >/dev/null && command -v openssl >/dev/null || { echo "ps5-host: FATAL all apk mirrors failed"; exit 1; }
 
         # ---- 站点：首启从公共仓库下载完整内容（页面 + 漏洞链 + payload 一步到位）----
         # 先下到文件再解压；GH_PROXY 有值时走加速，失败自动回退直连；总超时防挂死。
@@ -69,7 +75,14 @@ services:
         echo "ps5-host: site ready (page + exploit + payloads)"
         fi
 
-        # ---- DNS：NXDOMAIN 屏蔽索尼更新（bridge 版不接管用户指南入口）----
+        # ---- 自签证书：用户指南(443/HTTPS)入口用；剩余不足 7 天自动重建 ----
+        mkdir -p /srv/certs
+        if [ ! -s /srv/certs/cert.pem ] || [ ! -s /srv/certs/key.pem ] || ! openssl x509 -checkend 604800 -noout -in /srv/certs/cert.pem >/dev/null 2>&1; then
+        openssl req -x509 -newkey rsa:2048 -nodes -days 365 -keyout /srv/certs/key.pem -out /srv/certs/cert.pem -subj '/CN=manuals.playstation.net' -addext 'subjectAltName=DNS:manuals.playstation.net'
+        echo "ps5-host: generated new certificate (365 days)"
+        fi
+
+        # ---- DNS：NXDOMAIN 屏蔽索尼全系 + 可选接管用户指南入口 ----
         # 注：下面 heredoc 内容按 shell 语义需要顶格（勿加缩进）
         cat > /etc/ps5-dnsmasq.conf <<DNS_EOF
         no-resolv
@@ -88,11 +101,23 @@ services:
         address=/scea.com/
         address=/sonyinteractive.com/
         DNS_EOF
+        if [ -n "$$GUIDE_IP" ]; then
+        # 劫持用户指南入口（dnsmasq 最长匹配优先，泛域 NXDOMAIN 拦不住这条更具体的）
+        echo "address=/manuals.playstation.net/$$GUIDE_IP" >> /etc/ps5-dnsmasq.conf
+        echo "ps5-host: guide entry ON — manuals.playstation.net -> $$GUIDE_IP"
+        fi
 
-        # ---- HTTP：静态站（PS5 浏览器直接访问 http://<NAS IP>:8010/）----
+        # ---- HTTP/HTTPS：静态站 + 用户指南入口（/document 一律回首页）----
         cat > /etc/nginx/http.d/default.conf <<'NGINX_EOF'
         server {
         listen 80 default_server;
+        location /document { return 302 /; }
+        location / { root /srv/www; index index.html; try_files $$uri $$uri/ /index.html; }
+        }
+        server {
+        listen 443 ssl default_server;
+        ssl_certificate     /srv/certs/cert.pem;
+        ssl_certificate_key /srv/certs/key.pem;
         location /document { return 302 /; }
         location / { root /srv/www; index index.html; try_files $$uri $$uri/ /index.html; }
         }
@@ -100,10 +125,12 @@ services:
 
         dnsmasq --test -C /etc/ps5-dnsmasq.conf
         dnsmasq --no-daemon -C /etc/ps5-dnsmasq.conf &
-        echo "ps5-host: all services up — DNS 53/udp (update-block ACTIVE) / HTTP 8010"
+        echo "ps5-host: all services up — DNS 53/udp (Sony NXDOMAIN) / HTTP 8010 / HTTPS 443 (guide entry: GUIDE_IP=$$GUIDE_IP)"
         exec nginx -g "daemon off;"
     volumes:
       - ps5-www:/srv/www
+      - ps5-certs:/srv/certs
 
 volumes:
   ps5-www:
+  ps5-certs:

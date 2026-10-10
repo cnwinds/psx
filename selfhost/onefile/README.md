@@ -47,6 +47,12 @@ nslookup www.baidu.com <NAS的IP>                # 应正常解析（DNS 转发�
 
 **⑥ 更新屏蔽（默认已启用，UDP 53）**：把 PS5 手动 DNS 首选填 **NAS 的 IP**、备用留空即生效；电脑上 `nslookup ps5.update.playstation.net <NAS的IP>` 应返回 NXDOMAIN。若部署报 53 端口被占（见下方排错），注释掉 YAML 里 `- "53:53/udp"` 重新部署即关闭屏蔽、站点不受影响。
 
+## 用户指南入口（GUIDE_IP，可选）
+
+填了 `environment:` 里的 `GUIDE_IP=<电脑局域网IP>` 并保持 `443:443` 映射后，PS5（DNS 指向这台电脑）打开 **设置 → 用户指南** 或主页的 **健康与安全指南**，会自动落到破解页——和公共破解 DNS 体验一致，全程在自家局域网。打开时弹的证书警告选"继续"即可（自签证书的正常现象）。
+
+不填 `GUIDE_IP` 时该功能关闭，索尼域名照常全拦，纯手输地址用法不受影响。
+
 ## Windows Docker Desktop 也能跑这套 YAML
 
 bridge 版没有 macvlan，天然兼容 Docker Desktop（Windows/macOS）——适合"破解日临时在电脑上开一下"的用法：
