@@ -47,6 +47,16 @@ nslookup www.baidu.com <NAS的IP>                # 应正常解析（DNS 转发�
 
 **⑥ 更新屏蔽（默认已启用，UDP 53）**：把 PS5 手动 DNS 首选填 **NAS 的 IP**、备用留空即生效；电脑上 `nslookup ps5.update.playstation.net <NAS的IP>` 应返回 NXDOMAIN。若部署报 53 端口被占（见下方排错），注释掉 YAML 里 `- "53:53/udp"` 重新部署即关闭屏蔽、站点不受影响。
 
+## Windows Docker Desktop 也能跑这套 YAML
+
+bridge 版没有 macvlan，天然兼容 Docker Desktop（Windows/macOS）——适合"破解日临时在电脑上开一下"的用法：
+
+1. 安装 Docker Desktop → 保存本目录 `docker-compose.yml` 为本地文件 → PowerShell 里 `docker compose up -d`
+2. `ipconfig` 查 PC 局域网 IPv4 → 管理员 PowerShell 放行防火墙：
+   `New-NetFirewallRule -DisplayName "PS5-Host" -Direction Inbound -LocalPort 8010,53 -Action Allow`
+3. PS5 浏览器开 `http://<PC的IP>:8010`；破解期间把 PC 电源计划设为"从不睡眠"
+4. 8010/53 映射若被占改 `ports:` 左半边即可；不用 DNS 时可整行删掉 `53` 映射
+
 ## 常见问题（按报错对号入座）
 
 - **`The "xxx" variable is not set` 警告**：旧版问题已修复（shell 的 `$` 全部写成 `$$`）。手工编辑脚本时注意保留 `$$`。
