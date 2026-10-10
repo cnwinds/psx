@@ -51,7 +51,7 @@ Windows 可用 [etaHEN 仓库](https://github.com/etaHEN/etaHEN) 的 `send_paylo
 ### 托管
 
 - **GitHub Pages**：Fork/推送到你的仓库 → Settings → Pages → 选择 main 分支 → 用 `https://<用户名>.github.io/psx/` 访问。
-- **局域网（Windows 一体化）**：双击 `start-host.bat`（或 `python serve.py`）——一个进程全包：HTTP 80 站点 + HTTPS 443 用户指南入口（自动证书）+ DNS 53（索尼域名全拦、manuals 劫持）。需放行防火墙 53/80/443；若 53 被占多为 Windows 的 ICS 服务（services.msc 里禁用 Internet Connection Sharing）。PS5 DNS 首选填电脑 IP 即启用拦截+指南入口。
+- **局域网（Windows 一体化）**：双击 `start-host.bat`（或 `python serve.py`）——一个进程全包：HTTP 80 站点 + HTTPS 443 用户指南入口（自动证书）+ DNS 53（索尼域名全拦、manuals 劫持）。需放行防火墙 53/80/443；若 53 被占多为 Windows 的 ICS/移动热点（管理员执行 `net stop sharedaccess` 释放，或在 services.msc 禁用 Internet Connection Sharing），代理客户端（Clash/mihomo）的 DNS 监听也会占 53。PS5 DNS 首选填电脑 IP 即启用拦截+指南入口。
 - **NAS 全套自托管（推荐）**：见 [selfhost/README.md](selfhost/README.md)——dnsmasq + nginx 容器（QNAP Container Station/macvlan），DNS 接管「用户指南」入口直达本页，并屏蔽索尼更新域名防手滑升级，不依赖任何公共 exploit DNS。NAS 不方便 SSH 的用 [selfhost/onefile/ 单文件版](selfhost/onefile/README.md)：一个 YAML 粘贴即部署。
 
 ## 游戏镜像（ShadowMountPlus）
@@ -82,22 +82,6 @@ Windows 可用 [etaHEN 仓库](https://github.com/etaHEN/etaHEN) 的 `send_paylo
 - WebKit 阶段可能需要多次尝试，浏览器卡死就刷新页面。
 - 内核阶段可能挂起或 panic 主机，遇到就重启再试。
 - 每次重启后 kstuff / etaHEN / ShadowMountPlus 均需重新加载（重跑本页流程即可）。
-
-## 街机模拟器（RetroArch PS5 移植版）
-
-破解态下可玩街机/复古游戏：[mihawk-99/PS5_RetroArch](https://github.com/mihawk-99/PS5_RetroArch)（原生移植，33 核心 44 平台），街机用 **FBNeo**（CPS1/CPS2/Neo Geo/世嘉 System16 等，推荐）或 **MAME 0.289**（ROM 集必须匹配该版本）核心。
-
-安装（二选一）：
-
-- **商店安装（推荐）**：etaHEN Toolbox → 安装 Homebrew Store → 商店里直接装 RetroArch（PPSA99169），全程主机上完成
-- **手动安装**：从 [Releases](https://github.com/mihawk-99/PS5_RetroArch/releases) 下载解压，把 `PPSA99169` 文件夹通过 etaHEN 的 FTP（端口 1337）传到 `/data/homebrew/` 下
-
-注意：
-
-- **需要 ShadowMountPlus 1.7beta4+**（本仓库已打包）才能读到 USB 盘和扩展存储
-- ROM 放 USB 盘（`/mnt/usb0` 起）或内置 `content/` 目录；街机 ROM 集：FBNeo 用对应版本的 ROM set（网上搜 "FBNeo romset"），MAME 必须是 **0.289 版**匹配集
-- 部分 BIOS 放 `system/` 相应子目录，只能走 FTP 上传
-- RetroArch 自带 WebUI：`http://<PS5的IP>:6769`（仅内网使用）
 
 ## 稳定性提示之外的免责声明
 

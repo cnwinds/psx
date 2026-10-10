@@ -13,6 +13,7 @@ import os
 import socket
 import ssl
 import struct
+import subprocess
 import sys
 import threading
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -49,10 +50,42 @@ def out(message):
         print(message.encode("gbk", "replace").decode("gbk"), flush=True)
 
 
+def ranked_lan_ips():
+    """枚举本机 IPv4 并按“像真实局域网”排序：192.168 > 10 > 172.16。
+
+    代理 TUN(Meta/Clash 198.18.x)、Tailscale(100.64-127.x)、链路本地、组播等
+    地址对同一路由器下的 PS5 不可达，直接排除；Radmin(26.x) 之类垫底兜底。"""
+    try:
+        addrs = socket.gethostbyname_ex(socket.gethostname())[2]
+    except OSError:
+        return []
+
+    def rank(ip):
+        try:
+            first, second = (int(part) for part in ip.split(".")[:2])
+        except ValueError:
+            return None
+        if first == 192 and second == 168:
+            return 0
+        if first == 10:
+            return 1
+        if first == 172 and 16 <= second <= 31:
+            return 2
+        if first in (0, 127, 169, 198, 224) or 100 <= first <= 127 or first >= 240:
+            return None
+        return 3
+
+    ranked = [(rank(ip), ip) for ip in addrs]
+    return [ip for score, ip in sorted(item for item in ranked if item[0] is not None)]
+
+
 def detect_lan_ip():
-    """UDP connect 不发包，仅按路由表选本机出口 IP；离线时取主机名解析兜底。"""
     if HOST_IP:
         return HOST_IP
+    ips = ranked_lan_ips()
+    if ips:
+        return ips[0]
+    # 兜底：按默认路由取出口 IP（挂代理 TUN 时会拿到 198.18.x，需人工指定 HOST_IP）
     probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
         probe.connect(("223.5.5.5", 53))
@@ -63,13 +96,34 @@ def detect_lan_ip():
         pass
     finally:
         probe.close()
-    try:
-        ip = socket.gethostbyname(socket.gethostname())
-        if not ip.startswith("127."):
-            return ip
-    except OSError:
-        pass
     return "127.0.0.1"
+
+
+def find_port_owner(port, proto):
+    """Windows 下用 netstat+tasklist 查占用端口的进程，返回如 ["svchost.exe (PID 20372)"]。"""
+    if sys.platform != "win32":
+        return []
+
+    def run_lenient(args):
+        # 中文系统的 netstat/tasklist 输出是 GBK，按 bytes 取回宽松解码（字段本身是 ASCII）
+        try:
+            raw = subprocess.run(args, capture_output=True, timeout=15).stdout
+        except (OSError, subprocess.SubprocessError):
+            return ""
+        return raw.decode(errors="replace")
+
+    lines = run_lenient(["netstat", "-ano", "-p", proto]).splitlines()
+    owners = []
+    for line in lines:
+        fields = line.split()
+        if len(fields) < 4 or not fields[1].endswith(f":{port}") or not fields[-1].isdigit():
+            continue
+        pid = fields[-1]
+        csv = run_lenient(["tasklist", "/FI", f"PID eq {pid}", "/FO", "CSV", "/NH"]).strip()
+        name = csv.split('","')[0].strip('"') if csv.startswith('"') else f"PID {pid}"
+        if f"{name} (PID {pid})" not in owners:
+            owners.append(f"{name} (PID {pid})")
+    return owners
 
 
 # ---------------- DNS（53/udp）----------------
@@ -143,8 +197,7 @@ def handle_query(sock, data, addr, host_ip):
             sock.sendto(a_response(data, host_ip), addr)
             out(f"[dns] {name} -> {host_ip}  (指南入口，来自 {addr[0]})")
         elif any(name == s or name.endswith("." + s) for s in BLOCKED_SUFFIXES):
-            sock.sendto(error_response(data, 3), addr)   # NXDOMAIN
-            out(f"[dns] {name} -> NXDOMAIN  (拦截，来自 {addr[0]})")
+            sock.sendto(error_response(data, 3), addr)   # NXDOMAIN（高频请求，不打印日志）
         else:
             response = forward_upstream(data)
             if response:
@@ -161,6 +214,11 @@ def dns_loop(host_ip):
         sock.bind(("0.0.0.0", DNS_PORT))
     except OSError as error:
         out(f"[!] DNS {DNS_PORT}/udp 绑定失败：{error}")
+        owners = find_port_owner(DNS_PORT, "udp")
+        if owners:
+            out(f"    占用者：{'、'.join(owners)}")
+        out("    常见原因：Windows ICS/移动热点（svchost，管理员执行 net stop sharedaccess 释放）、")
+        out("    代理客户端 DNS 监听（Clash/mihomo 等，关闭其 DNS 服务或退出）。")
         out("    PS5 的 DNS 指向本机将不可用；站点功能不受影响。")
         return
     out(f"[dns] 监听 {DNS_PORT}/udp —— 索尼域名拦截 + 指南入口已激活")
@@ -228,6 +286,9 @@ def main():
     out("  PS5 Relapse All-in-One Host")
     out("-" * 54)
     out(f"  本机 IP     : {host_ip}")
+    others = [ip for ip in ranked_lan_ips() if ip != host_ip]
+    if others:
+        out(f"  备选 IP     : {', '.join(others[:3])}（选错就改脚本顶部 HOST_IP）")
     out(f"  PS5 浏览器  : http://{host_ip}/")
     out(f"  PS5 手动 DNS: 首选 {host_ip}   备用留空")
     out("  指南入口    : 设置 → 用户指南（证书警告点继续）")
@@ -250,7 +311,7 @@ def main():
         except OSError as error:
             out(f"[!] {name} 端口 {port} 被占用：{error}")
             if name == "DNS":
-                out("    PS5 DNS 指向本机将不可用；请释放端口或改脚本顶部 DNS_PORT。")
+                out("    PS5 DNS 指向本机将不可用；PS5 端 DNS 固定走 53，只能释放本机端口。")
             elif name == "HTTPS":
                 out("    用户指南入口不可用；站点功能不受影响。")
             else:
