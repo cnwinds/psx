@@ -69,9 +69,15 @@ services:
         cache-size=1000
         local=/manuals.playstation.net/
         address=/manuals.playstation.net/$$LAN_IP
-        address=/ps5.update.playstation.net/
-        address=/ps4.update.playstation.net/
-        address=/feu01.ps4.update.playstation.net/
+        # manuals 劫持保留（dnsmasq 按最长匹配优先，不会被下面的泛域覆盖）
+        address=/playstation.net/
+        address=/playstation.com/
+        address=/sonyentertainmentnetwork.com/
+        address=/sony.com/
+        address=/sony.net/
+        address=/psn.com/
+        address=/scea.com/
+        address=/sonyinteractive.com/
         DNS_EOF
 
         cat > /etc/nginx/http.d/default.conf <<'NGINX_EOF'
