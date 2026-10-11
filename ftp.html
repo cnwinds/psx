@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>传文件到 PS5 · FTP(2121)</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      background: #060606; color: #e8e8e8;
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      min-height: 100%;
+    }
+    body { padding: 24px 16px 40px; }
+    .wrap { max-width: 860px; margin: 0 auto; }
+    h1 { font-size: 24px; letter-spacing: 0.5px; margin-bottom: 4px; }
+    h1 .accent { color: #4fc3f7; }
+    .subtitle { color: #888; font-size: 13px; margin-bottom: 20px; }
+
+    .card {
+      border: 1px solid #1e1e1e; background: #0c0c0c;
+      border-radius: 10px; padding: 16px; margin-bottom: 16px;
+    }
+    .card-title { font-size: 14px; color: #4fc3f7; margin-bottom: 12px; }
+
+    .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    input[type=text], input[type=number] {
+      background: #000; border: 1px solid #2a2a2a; border-radius: 8px;
+      color: #e8e8e8; font-family: inherit; font-size: 14px; padding: 9px 12px;
+    }
+    input#host { width: 200px; } input#port { width: 76px; }
+    input:focus { outline: none; border-color: #35586b; }
+    button {
+      font-family: inherit; cursor: pointer; border: 0; border-radius: 8px;
+      font-size: 14px; padding: 9px 16px; color: #061014; background: #4fc3f7;
+    }
+    button.ghost {
+      background: #111; color: #9ab; border: 1px solid #2a2a2a; padding: 7px 13px; font-size: 13px;
+    }
+    button:disabled { opacity: 0.45; cursor: default; }
+    button.danger { background: #2b1517; color: #e57373; border: 1px solid #4a2023; padding: 4px 10px; font-size: 12px; }
+    button.mini { background: #111; color: #9ab; border: 1px solid #2a2a2a; padding: 4px 9px; font-size: 12px; }
+    button.mini:hover { border-color: #35586b; color: #bcd; }
+
+    #quick { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+
+    #crumb { font-family: Consolas, Menlo, monospace; font-size: 13px; color: #9ab; margin-bottom: 10px; word-break: break-all; }
+    #crumb a { color: #4fc3f7; text-decoration: none; cursor: pointer; }
+    #crumb a:hover { text-decoration: underline; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { text-align: left; color: #666; font-weight: normal; padding: 4px 8px; border-bottom: 1px solid #1e1e1e; }
+    td { padding: 6px 8px; border-bottom: 1px solid #131313; }
+    tr.dir td.name { color: #81c784; cursor: pointer; }
+    tr.file td.name { color: #ccc; }
+    td.size { color: #777; font-family: Consolas, Menlo, monospace; white-space: nowrap; }
+    td.act { text-align: right; white-space: nowrap; }
+    #empty { color: #555; font-size: 13px; padding: 14px 8px; }
+
+    #dropzone {
+      border: 1px dashed #2e3b44; border-radius: 10px; padding: 18px;
+      text-align: center; color: #779; font-size: 13px; margin-bottom: 12px;
+      transition: border-color .15s, background .15s;
+    }
+    #dropzone.on { border-color: #4fc3f7; background: #0b1014; color: #bcd; }
+
+    .qitem { display: flex; align-items: center; gap: 10px; font-size: 13px; padding: 6px 2px; border-bottom: 1px solid #131313; }
+    .qitem .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #bbb; }
+    .qitem .bar { width: 130px; height: 6px; background: #1a1a1a; border-radius: 3px; overflow: hidden; flex-shrink: 0; }
+    .qitem .bar i { display: block; height: 100%; width: 0%; background: #4fc3f7; transition: width .12s; }
+    .qitem.ok .bar i { background: #81c784; }
+    .qitem.err .bar i { background: #e57373; }
+    .qitem .st { width: 120px; text-align: right; color: #777; font-family: Consolas, Menlo, monospace; font-size: 12px; flex-shrink: 0; }
+
+    #console {
+      background: #000; border: 1px solid #1e1e1e; border-radius: 10px;
+      font-family: Consolas, Menlo, monospace; font-size: 12.5px; line-height: 1.55;
+      padding: 12px 14px; height: 190px; overflow-y: auto;
+      white-space: pre-wrap; word-break: break-all;
+    }
+    #console div { color: #9e9e9e; }
+    #console div:last-child { color: #e0e0e0; }
+    #console .e { color: #e57373; }
+    #console .g { color: #81c784; }
+
+    .hint { color: #666; font-size: 12px; margin-top: 10px; line-height: 1.7; }
+    #toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>传文件到 PS5 <span class="accent">· FTP</span></h1>
+  <div class="subtitle">浏览器直连 PS5 的 FTP 服务（ftpsrv，端口 2121），由本页所在主机转发 —— 无需安装 FileZilla 等客户端。</div>
+
+  <div class="card">
+    <div class="row">
+      <input type="text" id="host" placeholder="PS5 的 IP（如 192.168.3.x）" spellcheck="false">
+      <input type="number" id="port" value="2121" min="1" max="65535">
+      <button id="connect">连接</button>
+      <span id="conn-state" style="color:#777;font-size:13px;"></span>
+    </div>
+    <div class="hint">
+      前提：PS5 已跑完破解流程（自动加载含独立 FTP，监听 2121）。
+      PS5 的 IP 在 设置 → 网络 → 连接状态 里看。
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">PS5 文件浏览</div>
+    <div id="browser" style="display:none;">
+      <div id="quick"></div>
+      <div id="toolbar">
+        <div id="crumb"></div>
+        <div class="row">
+          <button class="ghost" id="mkdir">新建文件夹</button>
+          <button class="ghost" id="refresh">刷新</button>
+        </div>
+      </div>
+      <div id="summary" style="font-size:12px;color:#777;margin-bottom:6px;"></div>
+      <table>
+        <thead><tr><th>名称</th><th style="width:110px;">大小</th><th style="width:130px;">修改时间</th><th style="width:60px;"></th></tr></thead>
+        <tbody id="list"></tbody>
+      </table>
+      <div id="empty" style="display:none;">（空目录）</div>
+      <div style="text-align:center;padding:10px;"><button class="ghost" id="more" style="display:none;">显示更多</button></div>
+    </div>
+    <div id="browser-off" style="color:#666;font-size:13px;">连接 PS5 后在这里浏览和管理文件。</div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">上传到当前目录</div>
+    <div id="dropzone">把 文件 / 整个文件夹 拖到这里，或用下方按钮选择</div>
+    <div class="row" style="margin-bottom:10px;">
+      <button id="upload-game">🎮 上传游戏镜像</button>
+      <button class="ghost" id="pick-files">选择文件</button>
+      <button class="ghost" id="pick-dir">选择文件夹（可整个 homebrew 目录）</button>
+      <button id="upload" disabled>开始上传</button>
+      <label style="font-size:13px;color:#9ab;display:flex;align-items:center;gap:5px;" title="上传前先比对 PS5 上已有文件：已存在且大小相同的自动跳过，只传缺少或不同的（适合中断后续传）">
+        <input type="checkbox" id="incremental" checked> 增量续传
+      </label>
+      <button class="ghost" id="clear-queue" disabled>清空队列</button>
+      <span id="qsummary" style="color:#777;font-size:12.5px;"></span>
+    </div>
+    <div id="queue"></div>
+    <input type="file" id="f-files" multiple style="display:none">
+    <input type="file" id="f-dir" webkitdirectory multiple style="display:none">
+  </div>
+
+  <div class="card">
+    <div class="card-title">日志</div>
+    <div id="console"></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const state = { host: "", port: 2121, path: "/", connected: false, uploading: false, total: 0, shown: 0 };
+const PAGE = 500;  // 大目录分页渲染：一次最多追加的行数
+// 小文件批量：一个 HTTP 请求带多个文件，服务端连接池内并行落地，
+// 绕开浏览器同源并发(≈6)的上限——这是小文件吞吐的真正杠杆。
+const BATCH_SMALL = 512 * 1024;   // 单个 ≤512KB 才算小文件
+const BATCH_MAX_FILES = 32;       // 每批最多文件数
+const BATCH_MAX_BYTES = 16 * 1024 * 1024;  // 每批最多字节
+const UPLOAD_LANES = 5;          // 浏览器并发路数：同源上限约 6，留 1 个给目录/检查等控制请求；
+                                // FTP 写入并发由 serve.py 统一自适应，不在这里管
+const queue = [];   // {rel, name, file, row, barEl, stEl}
+
+/* ---------- 日志 ---------- */
+function log(msg, cls) {
+  const div = document.createElement("div");
+  if (cls) div.className = cls;
+  div.textContent = "[" + new Date().toLocaleTimeString() + "] " + msg;
+  $("console").appendChild(div);
+  $("console").scrollTop = $("console").scrollHeight;
+}
+
+/* ---------- 工具 ---------- */
+function fmtSize(n) {
+  if (n <= 0) return "—";
+  const units = ["B", "KB", "MB", "GB"];
+  let i = 0;
+  while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
+  return n.toFixed(n >= 100 || i === 0 ? 0 : 1) + " " + units[i];
+}
+function fmtMtime(s) {
+  if (!s || s.length !== 14) return "—";
+  return s.slice(0, 4) + "-" + s.slice(4, 6) + "-" + s.slice(6, 8) + " " + s.slice(8, 10) + ":" + s.slice(10, 12);
+}
+function joinRemote(base, rel) {
+  if (rel.startsWith("/")) base = "";   // 绝对路径不叠加到当前目录
+  const out = [];
+  for (const p of (base + "/" + rel).split("/")) {
+    if (!p || p === ".") continue;
+    if (p === "..") out.pop(); else out.push(p);
+  }
+  return "/" + out.join("/");
+}
+async function api(url, opts) {
+  const res = await fetch(url, opts);
+  let data = {};
+  try { data = await res.json(); } catch (e) {}
+  if (!res.ok) throw new Error(data.error || "HTTP " + res.status);
+  return data;
+}
+const listUrl = (path, offset) =>
+  "/api/ftp/list?host=" + encodeURIComponent(state.host) +
+  "&port=" + state.port + "&path=" + encodeURIComponent(path) +
+  "&limit=" + PAGE + "&offset=" + (offset || 0);
+
+/* ---------- 快捷路径（ShadowMountPlus 扫描目录等） ---------- */
+const QUICK_PATHS = [
+  { label: "🎮 游戏镜像", path: "/data/homebrew", create: true,  tip: "ShadowMountPlus 默认扫描的第一目录（.ffpkg/.exfat，也放自制软件）" },
+  { label: "🎮 旧游戏目录", path: "/data/etaHEN/games", create: true,  tip: "ShadowMountPlus 扫描的第二目录（旧路径，同样有效）" },
+  { label: "📦 ShadowMount", path: "/data/shadowmount", create: true,  tip: "ShadowMountPlus 配置目录（config.ini 在这里）" },
+  { label: "🏠 根目录", path: "/", create: false, tip: "PS5 文件系统根" },
+];
+
+function buildQuick() {
+  const box = $("quick");
+  box.innerHTML = "";
+  for (const q of QUICK_PATHS) {
+    const b = document.createElement("button");
+    b.className = "ghost";
+    b.textContent = q.label;
+    b.title = q.tip;
+    b.onclick = () => gotoPath(q);
+    box.appendChild(b);
+  }
+}
+
+async function gotoPath(q) {
+  if (await load(q.path)) return;
+  if (!q.create) return;                        // 错误信息 load() 已记入日志
+  try {
+    await api("/api/ftp/mkdir", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ host: state.host, port: state.port, path: q.path })
+    });
+    log("目录不存在，已自动创建 " + q.path, "g");
+    await load(q.path);
+  } catch (e) {
+    log("自动创建 " + q.path + " 失败：" + (e.message || e), "e");
+  }
+}
+
+/* ---------- 浏览 ---------- */
+async function connect() {
+  const host = $("host").value.trim();
+  const port = parseInt($("port").value, 10) || 2121;
+  if (!host) { log("请先填 PS5 的 IP", "e"); return; }
+  state.host = host; state.port = port;
+  localStorage.setItem("ps5ftp", host + ":" + port);
+  $("conn-state").textContent = "连接中…";
+  try {
+    const data = await api(listUrl("/"));
+    state.connected = true;
+    state.path = data.path;
+    $("conn-state").textContent = "已连接";
+    $("browser").style.display = "";
+    $("browser-off").style.display = "none";
+    log("已连接 " + host + ":" + port, "g");
+    buildQuick();
+    render(data);
+  } catch (e) {
+    state.connected = false;
+    $("conn-state").textContent = "连接失败";
+    log(String(e.message || e), "e");
+  }
+}
+
+async function load(path) {
+  try {
+    render(await api(listUrl(path, 0)));
+    return true;
+  } catch (e) {
+    log(String(e.message || e), "e");
+    return false;
+  }
+}
+
+function appendRow(e) {
+  const tb = $("list");
+  const tr = document.createElement("tr");
+  tr.className = e.dir ? "dir" : "file";
+  const tdName = document.createElement("td");
+  tdName.className = "name";
+  tdName.textContent = (e.dir ? "📁 " : "📄 ") + e.name;
+  if (e.dir) tdName.onclick = () => load(joinRemote(state.path, e.name));
+  const tdSize = document.createElement("td");
+  tdSize.className = "size";
+  tdSize.textContent = e.dir ? "" : fmtSize(e.size);
+  const tdTime = document.createElement("td");
+  tdTime.className = "size";
+  tdTime.textContent = fmtMtime(e.mtime);
+  const tdAct = document.createElement("td");
+  tdAct.className = "act";
+  const full = joinRemote(state.path, e.name);
+  const mkBtn = (label, cls, fn) => {
+    const b = document.createElement("button");
+    b.className = cls;
+    b.textContent = label;
+    b.onclick = fn;
+    tdAct.appendChild(b);
+  };
+  mkBtn(e.dir ? "打包↓" : "下载", "mini", () => downloadEntry(e, full));
+  mkBtn("改名", "mini", () => renameEntry(e, full));
+  mkBtn("删除", "danger", () => remove(e, full));
+  tr.append(tdName, tdSize, tdTime, tdAct);
+  tb.appendChild(tr);
+}
+
+function updateSummary() {
+  $("summary").textContent = state.total
+    ? `共 ${state.total} 项 · 已显示 ${state.shown}（目录置顶按名称；文件按修改时间从新到旧）`
+    : "";
+  $("more").style.display = state.shown < state.total ? "" : "none";
+  $("more").textContent = `显示更多（还有 ${state.total - state.shown} 项）`;
+}
+
+function render(data) {
+  state.path = data.path;
+  state.total = data.total;
+  state.shown = data.entries.length;
+  // 面包屑
+  const parts = data.path.split("/").filter(Boolean);
+  let html = '<a data-p="/">/</a>';
+  let acc = "";
+  for (const p of parts) {
+    acc += "/" + p;
+    html += ' <a data-p="' + acc + '">' + p + '</a>';
+  }
+  $("crumb").innerHTML = html;
+  $("crumb").querySelectorAll("a").forEach(a =>
+    a.onclick = () => load(a.dataset.p));
+  // 列表（只渲染第一页，大目录点「显示更多」追加）
+  $("list").innerHTML = "";
+  $("empty").style.display = data.total ? "none" : "";
+  for (const e of data.entries) appendRow(e);
+  updateSummary();
+}
+
+async function loadMore() {
+  try {
+    const data = await api(listUrl(state.path, state.shown));
+    for (const e of data.entries) appendRow(e);
+    state.shown += data.entries.length;
+    updateSummary();
+  } catch (e) {
+    log(String(e.message || e), "e");
+  }
+}
+
+async function remove(entry, path) {
+  const msg = entry.dir
+    ? "递归删除整个文件夹及其全部内容？\n" + path + "\n（不可恢复！）"
+    : "删除 " + path + " ？";
+  if (!confirm(msg)) return;
+  try {
+    await api("/api/ftp/delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        host: state.host, port: state.port, path: path,
+        dir: entry.dir, recursive: !!entry.dir
+      })
+    });
+    log("已删除 " + path, "g");
+    load(state.path);
+  } catch (e) {
+    log(String(e.message || e), "e");
+  }
+}
+
+async function renameEntry(entry, path) {
+  const to = prompt(
+    (entry.dir ? "文件夹新名（输入 / 开头的完整路径 = 移动位置）：" : "文件新名（输入完整路径 = 移动）："),
+    entry.name
+  );
+  if (!to || to === entry.name) return;
+  try {
+    const data = await api("/api/ftp/rename", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ host: state.host, port: state.port, path: path, to: to })
+    });
+    log("已改名/移动 → " + data.path, "g");
+    load(state.path);
+  } catch (e) {
+    log(String(e.message || e), "e");
+  }
+}
+
+function downloadEntry(entry, path) {
+  const kind = entry.dir ? "zip" : "get";
+  const url = "/api/ftp/" + kind +
+    "?host=" + encodeURIComponent(state.host) +
+    "&port=" + state.port + "&path=" + encodeURIComponent(path);
+  log(entry.dir ? "正在打包下载 " + path + "（大文件夹需等待）…" : "开始下载 " + path);
+  location.href = url;          // 响应带 Content-Disposition，浏览器直接存文件
+}
+
+async function mkdir() {
+  const name = prompt("新文件夹名（可多级，如 PPSA99169/content）：");
+  if (!name) return;
+  try {
+    const data = await api("/api/ftp/mkdir", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ host: state.host, port: state.port, path: joinRemote(state.path, name) })
+    });
+    log("已创建 " + data.path, "g");
+    load(state.path);
+  } catch (e) {
+    log(String(e.message || e), "e");
+  }
+}
+
+/* ---------- 队列与上传 ---------- */
+function addFiles(files, getRel) {
+  let n = 0;
+  for (const f of files) {
+    const rel = (getRel(f) || f.name).replace(/^\.?\//, "");
+    if (queue.some(q => q.rel === rel)) continue;
+    const row = document.createElement("div");
+    row.className = "qitem";
+    row.innerHTML = '<span class="nm"></span><span class="bar"><i></i></span><span class="st">等待</span>';
+    row.querySelector(".nm").textContent = rel + "  (" + fmtSize(f.size) + ")";
+    queue.push({ rel, file: f, row, barEl: row.querySelector("i"), stEl: row.querySelector(".st") });
+    $("queue").appendChild(row);
+    n++;
+  }
+  if (n) log("入队 " + n + " 个文件");
+  refreshQueueUi();
+}
+
+function refreshQueueUi() {
+  $("qsummary").textContent = queue.length ? queue.length + " 个待传" : "";
+  $("upload").disabled = !queue.length || state.uploading || !state.connected;
+  $("clear-queue").disabled = !queue.length || state.uploading;
+}
+
+function xhrPut(item) {
+  const remote = joinRemote(state.path, item.rel);
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/api/ftp/put");
+    xhr.setRequestHeader("X-Ftp-Host", state.host);
+    xhr.setRequestHeader("X-Ftp-Port", String(state.port));
+    xhr.setRequestHeader("X-Ftp-Path", encodeURIComponent(remote));  // header 只能 ASCII，先转义
+    xhr.upload.onprogress = e => {
+      if (e.lengthComputable) {
+        item.barEl.style.width = (e.loaded / e.total * 100).toFixed(1) + "%";
+        item.stEl.textContent = fmtSize(e.loaded) + " / " + fmtSize(e.total);
+      }
+    };
+    xhr.onload = () => {
+      if (xhr.status === 200) return resolve({ remote, ms: performance.now() - item._t0 });
+      let msg = "HTTP " + xhr.status;
+      try { msg = JSON.parse(xhr.responseText).error || msg; } catch (e) {}
+      reject(new Error(msg));
+    };
+    xhr.onerror = () => reject(new Error("网络错误（主机服务还在运行？）"));
+    xhr.ontimeout = () => reject(new Error("请求超时"));
+    item._t0 = performance.now();
+    xhr.send(item.file);
+  });
+}
+
+async function xhrPutBatch(items) {
+  const dir = state.path;
+  const enc = new TextEncoder();
+  const names = items.map(it => enc.encode(it.rel));   // 完整相对路径，保留子目录结构
+  const datas = await Promise.all(items.map(it => it.file.arrayBuffer()));
+  let total = 4;
+  for (let i = 0; i < items.length; i++) total += 4 + names[i].length + 8 + items[i].file.size;
+  const buf = new Uint8Array(total);
+  const dv = new DataView(buf.buffer);
+  let off = 0;
+  dv.setUint32(off, items.length, false); off += 4;
+  for (let i = 0; i < items.length; i++) {
+    dv.setUint32(off, names[i].length, false); off += 4;
+    buf.set(names[i], off); off += names[i].length;
+    dv.setBigUint64(off, BigInt(items[i].file.size), false); off += 8;
+    buf.set(new Uint8Array(datas[i]), off); off += items[i].file.size;
+  }
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/api/ftp/putbatch");
+    xhr.setRequestHeader("X-Ftp-Host", state.host);
+    xhr.setRequestHeader("X-Ftp-Port", String(state.port));
+    xhr.setRequestHeader("X-Ftp-Dir", encodeURIComponent(dir));
+    xhr.responseType = "json";
+    const batchBytes = total;
+    xhr.upload.onprogress = e => {
+      if (!e.lengthComputable) return;
+      const frac = e.loaded / e.total;
+      for (const it of items) {
+        it.barEl.style.width = Math.min(100, frac * 100).toFixed(1) + "%";
+        it.stEl.textContent = "批量 " + Math.round(frac * 100) + "%";
+      }
+    };
+    xhr.onload = () => {
+      if (xhr.status === 200) return resolve(xhr.response || {});
+      let msg = "HTTP " + xhr.status;
+      try { msg = (xhr.response && xhr.response.error) || msg; } catch (e) {}
+      reject(new Error(msg));
+    };
+    xhr.onerror = () => reject(new Error("网络错误"));
+    xhr.ontimeout = () => reject(new Error("请求超时"));
+    xhr.send(buf);
+  });
+}
+
+async function filterIncremental() {
+  if (!$("incremental").checked || !state.connected || !queue.length) return;
+  const manifest = queue.map(q => ({ name: q.rel, size: q.file.size }));
+  try {
+    const res = await api("/api/ftp/check", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ host: state.host, port: state.port, path: state.path, files: manifest })
+    });
+    if (res.need.length === queue.length) {
+      log(`增量检查：${res.total} 个文件都不在 PS5 上，全量上传`);
+      return;
+    }
+    const need = new Set(res.need);
+    const keep = [];
+    let skipped = 0;
+    for (const q of queue) {
+      if (need.has(q.rel)) keep.push(q);
+      else {
+        skipped++;
+        q.row.classList.add("ok");
+        q.barEl.style.width = "100%";
+        q.stEl.textContent = "跳过";
+        setTimeout(() => { try { $("queue").removeChild(q.row); } catch (e) {} }, 600);
+      }
+    }
+    queue.length = 0;
+    queue.push(...keep);
+    log(`增量续传：跳过 ${skipped} 个已存在（同大小），实际待传 ${queue.length} 个`, "g");
+    refreshQueueUi();
+  } catch (e) {
+    log("增量检查失败（" + (e.message || e) + "），按全量上传", "e");
+  }
+}
+
+async function uploadAll() {
+  if (!queue.length) return;
+  await filterIncremental();
+  if (!queue.length) { log("队列里的文件 PS5 上都已存在，无需上传", "g"); return; }
+  state.uploading = true;
+  refreshQueueUi();
+  const total = queue.length;
+  const lanes = Math.min(UPLOAD_LANES, total);
+  log(`开始上传 ${total} 个文件 → ${state.path}（${lanes} 路批量搬运，写入并发由服务端自适应）`);
+  let ok = 0, fail = 0, stopped = false;
+  let alive = 0;                       // 在岗 worker 数（含正在收尾的）
+
+  async function worker() {
+    alive++;
+    try {
+      while (queue.length && !stopped) {
+        // 聚合队首连续的小文件成一个批量请求；大文件/单个文件走单发
+        const batch = [];
+        let bytes = 0;
+        while (queue.length && batch.length < BATCH_MAX_FILES
+               && queue[0].file.size <= BATCH_SMALL
+               && bytes + queue[0].file.size <= BATCH_MAX_BYTES) {
+          const it = queue.shift();
+          batch.push(it);
+          bytes += it.file.size;
+        }
+        if (batch.length === 0) batch.push(queue.shift());   // 队首是大文件：单发
+        if (batch.length === 1) {
+          const item = batch[0];
+          item.stEl.textContent = "上传中…";
+          try {
+            const { remote } = await xhrPut(item);
+            ok++;
+            item.row.classList.add("ok");
+            item.barEl.style.width = "100%";
+            item.stEl.textContent = "完成";
+            log("✓ " + remote, "g");
+            $("queue").removeChild(item.row);
+          } catch (e) {
+            fail++;
+            stopped = true;
+            const msg = String(e.message || e);
+            item.row.classList.add("err");
+            item.row.title = item.rel + "  " + msg;
+            item.stEl.textContent = "失败：" + (msg.length > 18 ? msg.slice(0, 17) + "…" : msg);
+            log("✗ " + item.rel + "：" + msg, "e");
+          }
+          continue;
+        }
+        if (batch.length > 1) {
+          const names = new Map(batch.map(it => [it.file.name, it]));
+          try {
+            const res = await xhrPutBatch(batch);
+            const okMap = new Map((res.ok || []).map(r => [r.name, r.ms]));
+            const errMap = new Map((res.failed || []).map(r => [r.name, r.error]));
+            for (const it of batch) {
+              if (okMap.has(it.rel)) {
+                ok++;
+                it.row.classList.add("ok");
+                it.barEl.style.width = "100%";
+                it.stEl.textContent = "完成";
+                $("queue").removeChild(it.row);
+              } else {
+                fail++;
+                stopped = true;
+                const msg = String(errMap.get(it.rel) || "未知错误");
+                it.row.classList.add("err");
+                it.row.title = it.rel + "  " + msg;
+                it.stEl.textContent = "失败：" + (msg.length > 18 ? msg.slice(0, 17) + "…" : msg);
+                log("✗ " + it.rel + "：" + msg, "e");
+              }
+            }
+            const nOk = (res.ok || []).length;
+            if (nOk) log(`✓ 批量 ${nOk} 个小文件` + (res.lanes ? `（服务端 ${res.lanes} 路写入）` : ""), "g");
+          } catch (e) {
+            fail += batch.length;
+            stopped = true;
+            const msg = String(e.message || e);
+            for (const it of batch) {
+              it.row.classList.add("err");
+              it.row.title = it.rel + "  " + msg;
+              it.stEl.textContent = "失败";
+            }
+            log("✗ 批量上传失败（" + batch.length + " 个）：" + msg, "e");
+          }
+          continue;
+        }
+      }
+    } finally {
+      alive--;
+    }
+  }
+
+  const workers = new Set();
+  for (let i = 0; i < lanes; i++) {
+    const p = worker();
+    workers.add(p);
+    p.then(() => workers.delete(p), () => workers.delete(p));
+  }
+  await Promise.all([...workers]);
+  state.uploading = false;
+  refreshQueueUi();
+  if (stopped) {
+    log(`已停止：成功 ${ok}，失败 ${fail}，剩余 ${queue.length} 个留在队列。原因见上方红色行 / 行悬停提示；处理后可点“开始上传”续传。`, "e");
+  } else {
+    log("上传结束：成功 " + ok + "，失败 0", "g");
+    load(state.path);
+  }
+}
+
+/* ---------- 拖拽（支持整个文件夹） ---------- */
+function scanEntry(entry, prefix, out) {
+  return new Promise(resolve => {
+    if (entry.isFile) {
+      entry.file(f => { out.push({ f, rel: prefix + entry.name }); resolve(); }, () => resolve());
+    } else if (entry.isDirectory) {
+      const reader = entry.createReader();
+      const read = () => reader.readEntries(async ents => {
+        if (!ents.length) return resolve();
+        for (const e of ents) await scanEntry(e, prefix + entry.name + "/", out);
+        read();                                     // 目录条目多时要分批读
+      }, () => resolve());
+      read();
+    } else resolve();
+  });
+}
+
+/* ---------- 事件 ---------- */
+$("connect").onclick = connect;
+$("host").addEventListener("keydown", e => { if (e.key === "Enter") connect(); });
+$("refresh").onclick = () => load(state.path);
+$("mkdir").onclick = mkdir;
+$("pick-files").onclick = () => $("f-files").click();
+$("pick-dir").onclick = () => $("f-dir").click();
+$("f-files").onchange = e => { addFiles(e.target.files, f => f.name); e.target.value = ""; };
+$("f-dir").onchange = e => { addFiles(e.target.files, f => f.webkitRelativePath || f.name); e.target.value = ""; };
+$("upload").onclick = uploadAll;
+$("more").onclick = loadMore;
+$("upload-game").onclick = async () => {
+  if (!state.connected) { log("先连接 PS5 再上传游戏", "e"); return; }
+  const q = QUICK_PATHS[0];                     // 游戏镜像目录
+  await gotoPath(q);
+  if (state.path !== q.path) { log("未能进入游戏目录，已取消", "e"); return; }
+  log("选择游戏镜像文件（.ffpkg / .exfat / .ffpfs），上传后 ShadowMountPlus 约 15 秒内自动扫描识别");
+  $("f-files").click();
+};
+$("clear-queue").onclick = () => {
+  for (const q of queue) $("queue").removeChild(q.row);
+  queue.length = 0;
+  refreshQueueUi();
+};
+
+const dz = $("dropzone");
+["dragenter", "dragover"].forEach(ev => dz.addEventListener(ev, e => {
+  e.preventDefault(); dz.classList.add("on");
+}));
+["dragleave", "drop"].forEach(ev => dz.addEventListener(ev, e => {
+  e.preventDefault(); dz.classList.remove("on");
+}));
+dz.addEventListener("drop", async e => {
+  const items = [...(e.dataTransfer.items || [])];
+  const out = [];
+  const seen = new Set();
+  for (const it of items) {
+    if (it.kind !== "file") continue;
+    const entry = it.webkitGetAsEntry && it.webkitGetAsEntry();
+    if (entry && !seen.has(entry)) { seen.add(entry); await scanEntry(entry, "", out); }
+  }
+  if (out.length) addFiles(out.map(o => o.f), f => {
+    const hit = out.find(o => o.f === f);
+    return hit ? hit.rel : f.name;
+  });
+  else addFiles([...e.dataTransfer.files], f => f.name);
+});
+
+/* ---------- 启动 ---------- */
+const saved = localStorage.getItem("ps5ftp");
+if (saved) {
+  const [h, p] = saved.split(":");
+  if (h) {
+    $("host").value = h;
+    // 1337 是 etaHEN 时代的旧默认：迁移到 ftpsrv 的 2121，避免记忆把新默认顶掉
+    if (p) $("port").value = (p === "1337") ? "2121" : p;
+    connect();
+  }
+}
+log("页面就绪。填 PS5 的 IP 点「连接」——需破解页已跑完自动加载。");
+</script>
+</body>
+</html>

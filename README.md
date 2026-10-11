@@ -1,6 +1,6 @@
 # PS5 Relapse · All-in-One
 
-[Relapse-Exploit](https://github.com/ntfargo/Relapse-Exploit) 的一站式整合版：原仓库只包含漏洞利用链（跑通后 elfldr 监听 `9021`），缺少需要手动发送的三个 payload。本仓库把它们全部打包进 `payloads/`，并在页面上实现了自动发送——**打开一个页面即可完成全部流程**。
+[Relapse-Exploit](https://github.com/ntfargo/Relapse-Exploit) 的一站式整合版：原仓库只包含漏洞利用链（跑通后 elfldr 监听 `9021`），缺少需要手动发送的 payload。本仓库把它们全部打包进 `payloads/`，并在页面上实现了自动发送——**打开一个页面即可完成全部流程**。
 
 ```
 PS5 浏览器打开本页
@@ -10,8 +10,8 @@ PS5 浏览器打开本页
    ├─ 3. kexp 于内核上下文拉起 elfldr，监听 127.0.0.1:9021
    │
    ├─ 4. kstuff.elf          内核补丁：FSELF / FPKG 支持（一切的基础）
-   ├─ 5. etaHEN-2.5B.bin     AIO HEN：Toolbox / FTP(1337) / PKG 安装器(9090)
-   └─ 6. shadowmountplus.elf 游戏镜像自动挂载（依赖 kstuff 运行）
+   ├─ 5. shadowmountplus.elf 游戏镜像自动挂载（依赖 kstuff 运行）
+   └─ 6. ftpsrv.elf（可选）  独立 FTP 服务，监听 2121，传文件用
 ```
 
 ## 组件关系
@@ -21,19 +21,19 @@ PS5 浏览器打开本页
 | Relapse 漏洞链 | 浏览器 + 内核双阶段提权 | FW 7.00 – 13.60 | [ntfargo/Relapse-Exploit](https://github.com/ntfargo/Relapse-Exploit) |
 | elfldr（已含） | 监听 9021，接收并执行 ELF | 由漏洞链自动拉起 | 随 Relapse 仓库 |
 | kstuff.elf | 内核补丁：FSELF / FPKG、挂载支持 | 仅需内核漏洞 | [EchoStretch/kstuff-lite](https://github.com/EchoStretch/kstuff-lite) v1.11（FW 1.00 – 13.60） |
-| etaHEN-2.5B.bin | AIO HEN：Toolbox、FTP(1337)、PKG 安装器(9090)、插件、自带 kstuff 集成 | 端口 9021 | [etaHEN/etaHEN](https://github.com/etaHEN/etaHEN) 2.5B |
 | shadowmountplus.elf | 自动扫描 / 挂载 / 安装游戏镜像（.ffpkg / .exfat / .ffpfs） | kstuff-lite v1.07+ 运行中 | [drakmor/ShadowMountPlus](https://github.com/drakmor/ShadowMountPlus) 1.7beta4（RetroArch 移植版要求 beta4+ 才能访问 USB 盘） |
+| ftpsrv.elf | 独立 FTP 服务器（端口 2121），配 ftp.html 网页管理文件 | 仅需 elfldr | [ps5-payload-dev/ftpsrv](https://github.com/ps5-payload-dev/ftpsrv) v0.21.1 |
 
-加载顺序说明：kstuff 先打内核补丁；etaHEN 在其上构建 HEN 功能（也内嵌了自己的 kstuff）；ShadowMountPlus 需要 kstuff 处于运行状态，并自带 kstuff 自动暂停/恢复逻辑（游戏启动时暂停 kstuff、退出时恢复）。
+加载顺序说明：kstuff 先打内核补丁；ShadowMountPlus 需要 kstuff 处于运行状态，并自带 kstuff 自动暂停/恢复逻辑（游戏启动时暂停 kstuff、退出时恢复）；ftpsrv 任何时候按需发送即可。
 
 ## 使用方法
 
 ### 方式一：一站式页面（推荐）
 
 1. 用 GitHub Pages 或局域网托管本仓库（见下），PS5 浏览器打开 `index.html`。
-2. 页面自动运行漏洞链；浏览器阶段偶发失败——卡住就刷新重试，内核阶段若死机则重启主机再来。
-3. 日志出现 `elfldr is listening on port 9021` 后，payload 面板自动出现。默认勾选「自动加载」，也可点「一键加载全部」或单独发送；页面通过 ROP 直接向 `127.0.0.1:9021` 发送字节流，全程无需 PC 参与。
-4. 主机屏幕依次弹出 etaHEN Toolbox 与 ShadowMount+ 通知即成功。
+2. 页面先探测本机是否已在破解状态（elfldr 9021 仍在线即跳过漏洞利用，直接发 payload）；未破解才自动开始漏洞链。浏览器阶段偶发失败——卡住就刷新重试，内核阶段若死机则重启主机再来。
+3. 日志出现 `elfldr is listening on port 9021` 后，payload 面板自动出现。默认勾选「自动加载」（kstuff → ShadowMountPlus → ftpsrv），也可单独发送；页面通过 ROP 直接向 `127.0.0.1:9021` 发送字节流，全程无需 PC 参与。
+4. 主机屏幕弹出 ShadowMount+ 通知、链尾端口验证显示 9021 与 2121 都在监听即成功；电脑浏览器打开 `/ftp.html` 即可传文件。
 
 ### 方式二：PC 手动发送
 
@@ -42,8 +42,8 @@ PS5 浏览器打开本页
 ```bash
 # Linux / macOS（IP 换成你的 PS5）
 nc 192.168.1.100 9021 < kstuff.elf
-nc 192.168.1.100 9021 < etaHEN-2.5B.bin
 nc 192.168.1.100 9021 < shadowmountplus.elf
+nc 192.168.1.100 9021 < ftpsrv.elf      # 可选：独立 FTP（2121）
 ```
 
 Windows 可用 [etaHEN 仓库](https://github.com/etaHEN/etaHEN) 的 `send_payload.ps1`。
@@ -52,13 +52,14 @@ Windows 可用 [etaHEN 仓库](https://github.com/etaHEN/etaHEN) 的 `send_paylo
 
 - **GitHub Pages**：Fork/推送到你的仓库 → Settings → Pages → 选择 main 分支 → 用 `https://<用户名>.github.io/psx/` 访问。
 - **局域网（Windows 一体化）**：双击 `start-host.bat`（或 `python serve.py`）——一个进程全包：HTTP 80 站点 + HTTPS 443 用户指南入口（自动证书）+ DNS 53（索尼域名全拦、manuals 劫持）。需放行防火墙 53/80/443；若 53 被占多为 Windows 的 ICS/移动热点（管理员执行 `net stop sharedaccess` 释放，或在 services.msc 禁用 Internet Connection Sharing），代理客户端（Clash/mihomo）的 DNS 监听也会占 53。PS5 DNS 首选填电脑 IP 即启用拦截+指南入口。
+- **传文件到 PS5（网页 FTP + 文件管理）**：破解页自动加载完成后（含独立 FTP），电脑/手机浏览器打开 `http://<电脑IP>/ftp.html`，填 PS5 的 IP、端口 2121 即可管理 PS5 文件（ftpsrv，无需安装 FileZilla 等客户端）。支持：**一键上传游戏镜像**（自动进入 `/data/homebrew`，ShadowMountPlus 的默认扫描第一目录，约 15 秒自动扫描）；整个文件夹拖拽上传（RetroArch、BIOS、ROM 都能传）；浏览/新建/重命名/移动/递归删除；把文件或整个文件夹（自动打包 zip）下载回电脑备份。
 - **NAS 全套自托管（推荐）**：见 [selfhost/README.md](selfhost/README.md)——dnsmasq + nginx 容器（QNAP Container Station/macvlan），DNS 接管「用户指南」入口直达本页，并屏蔽索尼更新域名防手滑升级，不依赖任何公共 exploit DNS。NAS 不方便 SSH 的用 [selfhost/onefile/ 单文件版](selfhost/onefile/README.md)：一个 YAML 粘贴即部署。
 
 ## 游戏镜像（ShadowMountPlus）
 
 - 推荐格式 `.ffpkg`（UFS）；`.exfat` 用于需要外接盘兼容性的游戏；`.ffpfs` 为实验性。
 - 镜像根目录必须直接是游戏文件（如 `/sce_sys/param.json`），不能再套一层文件夹。
-- 默认扫描内置盘 `/data/etaHEN/games`、`/data/shadowmount` 等路径，约每 15 秒自动扫描；可用 `/data/shadowmount/config.ini` 的 `scanpath=` 自定义。
+- 默认扫描 `/data/homebrew`（首选）、`/data/etaHEN/games`、`/data/shadowmount` 及全部 USB/扩展盘根目录，约每 15 秒自动扫描；可用 `/data/shadowmount/config.ini` 的 `scanpath=` 自定义。
 - 配置详见 [ShadowMountPlus README](https://github.com/drakmor/ShadowMountPlus#readme)。
 
 ## 街机模拟器（RetroArch PS5 移植版）
@@ -67,8 +68,7 @@ Windows 可用 [etaHEN 仓库](https://github.com/etaHEN/etaHEN) 的 `send_paylo
 
 安装（二选一）：
 
-- **商店安装（推荐）**：etaHEN Toolbox → 安装 Homebrew Store → 商店里直接装 RetroArch（PPSA99169），全程主机上完成
-- **手动安装**：从 [Releases](https://github.com/mihawk-99/PS5_RetroArch/releases) 下载解压，把 `PPSA99169` 文件夹通过 etaHEN 的 FTP（端口 1337）传到 `/data/homebrew/` 下
+- **手动安装**：从 [Releases](https://github.com/mihawk-99/PS5_RetroArch/releases) 下载解压，把 `PPSA99169` 文件夹通过 FTP（端口 2121）传到 `/data/homebrew/` 下——用本页 `/ftp.html` 网页拖拽上传即可，也可用 FileZilla
 
 注意：
 
@@ -81,7 +81,7 @@ Windows 可用 [etaHEN 仓库](https://github.com/etaHEN/etaHEN) 的 `send_paylo
 
 - WebKit 阶段可能需要多次尝试，浏览器卡死就刷新页面。
 - 内核阶段可能挂起或 panic 主机，遇到就重启再试。
-- 每次重启后 kstuff / etaHEN / ShadowMountPlus 均需重新加载（重跑本页流程即可）。
+- 每次重启后 kstuff / ShadowMountPlus 均需重新加载（重跑本页流程即可），独立 FTP 按需再发。
 
 ## 稳定性提示之外的免责声明
 
@@ -91,10 +91,10 @@ Windows 可用 [etaHEN 仓库](https://github.com/etaHEN/etaHEN) 的 `send_paylo
 
 - **Relapse 漏洞链**：Sonic_Iso（内核漏洞）、Jordy（WebKit 漏洞与内核 bug）、ntfargo、ufm42（漏洞开发）、Dr. Yenyen（测试），以及 TheFlow、SlidyBat、Flatz、cow、nhk、bollarz、Sleirsgoevy、EchoStretch、EarthOnion
 - **kstuff 系列**：sleirsgoevy、zecoxao、flatz、idlesauce、buzzer-re、Al-Azif、EchoStretch、drakmor
-- **etaHEN**：LightningMods 及社区贡献者
+- **ftpsrv**：ps5-payload-dev 社区
 - **ShadowMountPlus**：drakmor（ShadowMount 的开源延续）
 - 页面自动发送思路参考社区 all-in-one host（ps5jb 等）
 
 ## License
 
-MIT（见 LICENSE，漏洞链部分版权 Nathan Fargo）。各 payload 遵循其上游项目协议：kstuff-lite（GPL）、etaHEN（GPL-3.0）、ShadowMountPlus（GPL-3.0）。
+MIT（见 LICENSE，漏洞链部分版权 Nathan Fargo）。各 payload 遵循其上游项目协议：kstuff-lite（GPL）、ShadowMountPlus（GPL-3.0）、ftpsrv（随上游 ps5-payload-dev/ftpsrv）。

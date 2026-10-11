@@ -93,7 +93,7 @@
     }
     summary { cursor: pointer; color: #ddd; font-size: 14px; margin-bottom: 8px; }
     details ol, details ul { padding-left: 20px; }
-    details code {
+    details code, #jb-banner code {
       background: #161616; border-radius: 4px; padding: 1px 5px;
       font-family: Consolas, Menlo, monospace; font-size: 12px; color: #ce93d8;
     }
@@ -110,17 +110,32 @@
       <div class="badges">
         <span class="badge ok">FW 7.00 – 13.60</span>
         <span class="badge">kstuff-lite 1.11</span>
-        <span class="badge">etaHEN 2.5B</span>
         <span class="badge">ShadowMountPlus 1.7beta4</span>
+        <span class="badge">ftpsrv v0.21.1</span>
       </div>
     </div>
-    <div class="subtitle">一站式主机：浏览器漏洞 → 内核提权 → elfldr(9021) → kstuff / etaHEN / ShadowMountPlus，全部在本页完成。</div>
+    <div class="subtitle">一站式主机：浏览器漏洞 → 内核提权 → elfldr(9021) → kstuff / ShadowMountPlus / 独立 FTP，全部在本页完成。</div>
 
     <div class="steps">
       <div class="step"><b>1 · WebKit</b>用户态读写</div>
       <div class="step"><b>2 · Kernel</b>内核提权 / 沙箱逃逸</div>
       <div class="step"><b>3 · elfldr</b>监听 127.0.0.1:9021</div>
-      <div class="step"><b>4 · Payloads</b>kstuff → etaHEN → SMP</div>
+      <div class="step"><b>4 · Payloads</b>kstuff → SMP（+FTP 按需）</div>
+    </div>
+
+    <div id="jb-banner" class="panel hidden">
+      <div style="border:1px solid #2e5d32;background:#0b140e;border-radius:10px;padding:16px 18px;">
+        <div style="font-size:16px;color:#81c784;margin-bottom:10px;">✅ 检测到 elfldr 仍在监听（<span id="jb-ports" style="color:#81c784"></span>）—— 内核破解仍有效，已跳过漏洞利用</div>
+        <div style="font-size:13px;color:#9ab;line-height:2;">
+          · <b>发送 payload</b>：电脑上执行 <code>nc &lt;PS5的IP&gt; 9021 &lt; payloads/kstuff.elf</code> 等直发（页面内直发需先重跑漏洞链）<br>
+          · <b>传文件</b>：自动加载已含独立 FTP(2121)，电脑直接打开 <a href="/ftp.html" style="color:#4fc3f7">FTP 文件管理</a><br>
+          · <b>游戏</b>：镜像放 <code>/data/homebrew</code>（SMP 默认扫描第一目录），自动扫描挂载
+        </div>
+        <div style="margin-top:12px;">
+          <button id="btn-reexploit" class="small">重新走完整破解流程</button>
+          <span style="font-size:12px;color:#666;margin-left:10px;">（检测有误或需要完整重来时用）</span>
+        </div>
+      </div>
     </div>
 
     <div id="console"></div>
@@ -141,15 +156,6 @@
           <div class="src"><a href="https://github.com/EchoStretch/kstuff-lite">EchoStretch/kstuff-lite</a> · payloads/kstuff.elf</div>
           <div class="row" style="margin-top:10px"><button class="small" id="send-kstuff">发送</button></div>
         </div>
-        <div class="card" id="card-etahen" data-state="idle">
-          <div class="row">
-            <span class="name">etaHEN 2.5B</span>
-            <span class="status">待发送</span>
-          </div>
-          <div class="desc">AIO HEN：Toolbox 调试设置、FTP(1337)、PKG 安装器(9090)、插件系统、自带 kstuff 集成。</div>
-          <div class="src"><a href="https://github.com/etaHEN/etaHEN">etaHEN/etaHEN</a> · payloads/etaHEN-2.5B.bin</div>
-          <div class="row" style="margin-top:10px"><button class="small" id="send-etahen">发送</button></div>
-        </div>
         <div class="card" id="card-smp" data-state="idle">
           <div class="row">
             <span class="name">ShadowMountPlus 1.7beta4</span>
@@ -159,6 +165,15 @@
           <div class="src"><a href="https://github.com/drakmor/ShadowMountPlus">drakmor/ShadowMountPlus</a> · payloads/shadowmountplus.elf</div>
           <div class="row" style="margin-top:10px"><button class="small" id="send-smp">发送</button></div>
         </div>
+        <div class="card" id="card-ftpsrv" data-state="idle">
+          <div class="row">
+            <span class="name">独立 FTP 服务 <small style="color:#777">(2121)</small></span>
+            <span class="status">待发送</span>
+          </div>
+          <div class="desc">独立 FTP 服务器（ps5-payload-sdk ftpsrv），监听 2121，随一键加载自动发送；之后打开 <a href="/ftp.html" style="color:#4fc3f7">ftp.html</a>（端口 2121）即可在电脑上浏览 / 上传 / 管理 PS5 文件。</div>
+          <div class="src"><a href="https://github.com/ps5-payload-dev/ftpsrv">ps5-payload-dev/ftpsrv</a> · payloads/ftpsrv.elf</div>
+          <div class="row" style="margin-top:10px"><button class="small" id="send-ftpsrv">发送</button></div>
+        </div>
       </div>
     </div>
 
@@ -167,8 +182,8 @@
       <div class="downloads">
         <table>
           <tr><td><a href="payloads/kstuff.elf" download>kstuff.elf</a></td><td>kstuff-lite 1.11 · 内核补丁</td><td class="size">1.7 MB</td></tr>
-          <tr><td><a href="payloads/etaHEN-2.5B.bin" download>etaHEN-2.5B.bin</a></td><td>etaHEN 2.5B · AIO HEN</td><td class="size">4.5 MB</td></tr>
           <tr><td><a href="payloads/shadowmountplus.elf" download>shadowmountplus.elf</a></td><td>ShadowMountPlus 1.7beta4 · 自动挂载</td><td class="size">2.3 MB</td></tr>
+          <tr><td><a href="payloads/ftpsrv.elf" download>ftpsrv.elf</a></td><td>独立 FTP 服务 · 端口 2121</td><td class="size">0.2 MB</td></tr>
           <tr><td><a href="payloads/elfldr-ps5-1360.elf" download>elfldr-ps5-1360.elf</a></td><td>elfldr · ELF 加载器（内核阶段自动使用）</td><td class="size">0.4 MB</td></tr>
           <tr><td><a href="payloads/kexp_2026_05_25.bin" download>kexp_2026_05_25.bin</a></td><td>kexp · 内核 payload 引导（自动使用）</td><td class="size">18 KB</td></tr>
         </table>
@@ -178,11 +193,11 @@
     <details>
       <summary>使用说明</summary>
       <ol>
-        <li>PS5 浏览器打开本页（固件 7.00 – 13.60），页面会自动开始漏洞利用；浏览器阶段偶发失败，卡住时刷新重试，内核阶段若死机则重启主机再来。</li>
-        <li>看到 <code>elfldr is listening on port 9021</code> 后，payload 面板会出现；默认勾选了自动加载，也可点击「一键加载全部」或单独发送。</li>
-        <li>加载顺序：<code>kstuff.elf</code>（内核补丁）→ <code>etaHEN-2.5B.bin</code>（HEN，屏幕弹出 Toolbox 通知）→ <code>shadowmountplus.elf</code>（挂载器，弹出 ShadowMount+ 通知）。</li>
-        <li>游戏镜像放到内置盘 <code>/data/etaHEN/games</code>、<code>/data/shadowmount</code> 或 USB 的扫描目录，ShadowMountPlus 每约 15 秒自动扫描挂载。</li>
-        <li>也可以用 PC 手动发送（主机 IP 替换）：Linux/macOS <code>nc 192.168.x.x 9021 &lt; kstuff.elf</code>；Windows PowerShell 见 <a href="https://github.com/etaHEN/etaHEN" style="color:#4fc3f7">etaHEN 仓库</a> 的 send_payload.ps1。</li>
+        <li>PS5 浏览器打开本页（固件 7.00 – 13.60），页面先探测本机是否已在破解状态（elfldr 9021 仍在线即跳过漏洞利用，直接发 payload）；未破解才自动开始漏洞利用，浏览器阶段偶发失败，卡住时刷新重试，内核阶段若死机则重启主机再来。</li>
+        <li>看到 <code>elfldr is listening on port 9021</code> 后，payload 面板会出现；默认勾选了自动加载（kstuff → ShadowMountPlus → 独立 FTP），也可单独重发。</li>
+        <li>加载顺序：<code>kstuff.elf</code>（内核补丁）→ <code>shadowmountplus.elf</code>（挂载器，弹出 ShadowMount+ 通知）→ <code>ftpsrv.elf</code>（FTP 监听 2121）。</li>
+        <li>游戏镜像放到 <code>/data/homebrew</code>（默认扫描第一目录；<code>/data/etaHEN/games</code>、<code>/data/shadowmount</code>、USB 根目录也都在扫描范围），ShadowMountPlus 每约 15 秒自动扫描挂载。</li>
+        <li>也可以用 PC 手动发送（主机 IP 替换）：Linux/macOS <code>nc 192.168.x.x 9021 &lt; kstuff.elf</code>；Windows 可用社区 send_payload.ps1 脚本。</li>
         <li>重启后一切还原，需要重新走一遍本页流程；稳定性提示与免责声明见仓库 README。</li>
       </ol>
     </details>
@@ -192,9 +207,9 @@
       <ul>
         <li><b>Relapse 漏洞链</b>（WebKit 用户态 → aio_multi_wait 内核 UAF → 提权）：跑通后由 kexp 在内核上下文拉起 <b>elfldr</b> 并监听 9021。</li>
         <li><b>elfldr</b>：接收 ELF 字节流并加载执行，是后续所有 payload 的入口（本页通过 ROP 直接向 127.0.0.1:9021 发送）。</li>
-        <li><b>kstuff-lite</b>：内核补丁集（FSELF/FPKG、挂载等），etaHEN 与 ShadowMountPlus 都依赖它运行。</li>
-        <li><b>etaHEN</b>：AIO HEN，自带 kstuff 集成与 fpkg 支持，提供 Toolbox、FTP(1337)、PKG 安装器(9090)、插件等。</li>
-        <li><b>ShadowMountPlus</b>：依赖 kstuff-lite v1.07+，自动扫描/挂载/安装游戏镜像，含 kstuff 自动暂停恢复逻辑。</li>
+<li><b>ftpsrv</b>：独立 FTP 服务器（2121），不依赖任何 HEN 组件，elfldr 在就能发；配 /ftp.html 网页管理文件。</li>
+        <li><b>kstuff-lite</b>：内核补丁集（FSELF/FPKG、挂载等），ShadowMountPlus 依赖它运行。</li>
+                <li><b>ShadowMountPlus</b>：依赖 kstuff-lite v1.07+，自动扫描/挂载/安装游戏镜像，含 kstuff 自动暂停恢复逻辑。</li>
       </ul>
     </details>
 
@@ -202,8 +217,8 @@
       <div>
         Exploit: <a href="https://github.com/ntfargo/Relapse-Exploit">Relapse-Exploit</a>（Sonic_Iso, Jordy, ntfargo, ufm42, Dr. Yenyen 等）·
         Payloads: <a href="https://github.com/EchoStretch/kstuff-lite">kstuff-lite</a> ·
-        <a href="https://github.com/etaHEN/etaHEN">etaHEN</a> ·
-        <a href="https://github.com/drakmor/ShadowMountPlus">ShadowMountPlus</a>
+        <a href="https://github.com/drakmor/ShadowMountPlus">ShadowMountPlus</a> ·
+        <a href="https://github.com/ps5-payload-dev/ftpsrv">ftpsrv</a>
       </div>
       <div class="warn">仅供教育与研究用途，仅限在自有设备上使用；可能导致系统不稳定、数据丢失或账号封禁，风险自负。不支持盗版。</div>
     </div>
