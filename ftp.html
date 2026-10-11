@@ -50,7 +50,8 @@
     #crumb a:hover { text-decoration: underline; }
 
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    th { text-align: left; color: #666; font-weight: normal; padding: 4px 8px; border-bottom: 1px solid #1e1e1e; }
+    th { text-align: left; color: #666; font-weight: normal; padding: 4px 8px; border-bottom: 1px solid #1e1e1e;
+         position: sticky; top: 0; background: #0c0c0c; z-index: 1; }
     td { padding: 6px 8px; border-bottom: 1px solid #131313; }
     tr.dir td.name { color: #81c784; cursor: pointer; }
     tr.file td.name { color: #ccc; }
@@ -58,13 +59,31 @@
     td.act { text-align: right; white-space: nowrap; }
     #empty { color: #555; font-size: 13px; padding: 14px 8px; }
 
+    /* 两个列表都用固定高度滚动窗口，页面布局保持稳定 */
+    .tablewrap { max-height: 430px; overflow-y: auto; border: 1px solid #161616; border-radius: 8px; }
+
     #dropzone {
       border: 1px dashed #2e3b44; border-radius: 10px; padding: 18px;
       text-align: center; color: #779; font-size: 13px; margin-bottom: 12px;
       transition: border-color .15s, background .15s;
     }
     #dropzone.on { border-color: #4fc3f7; background: #0b1014; color: #bcd; }
+    #dropzone.busy { border-color: #ffd54f; color: #ffd54f; }
 
+    /* 总进度面板 */
+    #progress { border: 1px solid #22303a; background: #0b1014; border-radius: 10px; padding: 14px; margin-bottom: 12px; }
+    #progress.hidden { display: none; }
+    .pbar { height: 14px; background: #1a1a1a; border-radius: 7px; overflow: hidden; margin-bottom: 10px; }
+    .pbar i { display: block; height: 100%; width: 0%; background: linear-gradient(90deg, #1976d2, #4fc3f7); transition: width .3s; }
+    .pstats { display: flex; flex-wrap: wrap; gap: 8px 22px; font-size: 12.5px; color: #9ab; font-family: Consolas, Menlo, monospace; }
+    .pstats b { color: #e0e0e0; font-weight: normal; }
+
+    /* 待传队列：固定高度滚动窗口 */
+    #queue {
+      height: 400px; overflow-y: auto; border: 1px solid #161616; border-radius: 8px; padding: 4px 8px;
+      contain: strict;                /* 万级队列时滚动/重绘隔离 */
+    }
+    #queue:empty::after { content: "（队列为空）"; color: #555; font-size: 13px; }
     .qitem { display: flex; align-items: center; gap: 10px; font-size: 13px; padding: 6px 2px; border-bottom: 1px solid #131313; }
     .qitem .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #bbb; }
     .qitem .bar { width: 130px; height: 6px; background: #1a1a1a; border-radius: 3px; overflow: hidden; flex-shrink: 0; }
@@ -72,11 +91,12 @@
     .qitem.ok .bar i { background: #81c784; }
     .qitem.err .bar i { background: #e57373; }
     .qitem .st { width: 120px; text-align: right; color: #777; font-family: Consolas, Menlo, monospace; font-size: 12px; flex-shrink: 0; }
+    .qmore { text-align: center; color: #666; font-size: 12px; padding: 8px 2px; }
 
     #console {
       background: #000; border: 1px solid #1e1e1e; border-radius: 10px;
       font-family: Consolas, Menlo, monospace; font-size: 12.5px; line-height: 1.55;
-      padding: 12px 14px; height: 190px; overflow-y: auto;
+      padding: 12px 14px; height: 260px; overflow-y: auto;
       white-space: pre-wrap; word-break: break-all;
     }
     #console div { color: #9e9e9e; }
@@ -118,10 +138,12 @@
         </div>
       </div>
       <div id="summary" style="font-size:12px;color:#777;margin-bottom:6px;"></div>
-      <table>
-        <thead><tr><th>名称</th><th style="width:110px;">大小</th><th style="width:130px;">修改时间</th><th style="width:60px;"></th></tr></thead>
-        <tbody id="list"></tbody>
-      </table>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>名称</th><th style="width:110px;">大小</th><th style="width:130px;">修改时间</th><th style="width:60px;"></th></tr></thead>
+          <tbody id="list"></tbody>
+        </table>
+      </div>
       <div id="empty" style="display:none;">（空目录）</div>
       <div style="text-align:center;padding:10px;"><button class="ghost" id="more" style="display:none;">显示更多</button></div>
     </div>
@@ -142,6 +164,19 @@
       <button class="ghost" id="clear-queue" disabled>清空队列</button>
       <span id="qsummary" style="color:#777;font-size:12.5px;"></span>
     </div>
+
+    <div id="progress" class="hidden">
+      <div class="pbar"><i id="pbar-fill"></i></div>
+      <div class="pstats">
+        <span>文件 <b id="p-files">0 / 0</b></span>
+        <span>字节 <b id="p-bytes">0 B / 0 B</b></span>
+        <span>进度 <b id="p-pct">0%</b></span>
+        <span>当前速度 <b id="p-speed">—</b></span>
+        <span>平均 <b id="p-avg">—</b></span>
+        <span>剩余时间 <b id="p-eta">—</b></span>
+      </div>
+    </div>
+
     <div id="queue"></div>
     <input type="file" id="f-files" multiple style="display:none">
     <input type="file" id="f-dir" webkitdirectory multiple style="display:none">
@@ -163,17 +198,27 @@ const PAGE = 500;  // 大目录分页渲染：一次最多追加的行数
 const BATCH_SMALL = 512 * 1024;   // 单个 ≤512KB 才算小文件
 const BATCH_MAX_FILES = 32;       // 每批最多文件数
 const BATCH_MAX_BYTES = 16 * 1024 * 1024;  // 每批最多字节
-const UPLOAD_LANES = 5;          // 浏览器并发路数：同源上限约 6，留 1 个给目录/检查等控制请求；
-                                // FTP 写入并发由 serve.py 统一自适应，不在这里管
-const queue = [];   // {rel, name, file, row, barEl, stEl}
+const UPLOAD_LANES = 5;           // 浏览器并发路数：同源上限约 6，留 1 个给目录/检查等控制请求；
+                                  // FTP 写入并发由 serve.py 统一自适应，不在这里管
+const QUEUE_WINDOW = 200;         // 队列只渲染在传 + 前 200 个待传，万级队列也不卡
+
+const queue = [];      // 待传：{rel, file, status, _loaded, _t0, rowEl?, barEl?, stEl?}
+const inflight = [];   // 已领出正在传的
+let queueBytes = 0;    // 待传字节合计（addFiles 时累计）
+
+/* ---------- 总进度统计 ---------- */
+const stats = { total: 0, done: 0, bytes: 0, sent: 0, t0: 0, lastTs: 0, lastSent: 0, speedNow: 0 };
+let statsTimer = 0;
 
 /* ---------- 日志 ---------- */
 function log(msg, cls) {
+  const box = $("console");
   const div = document.createElement("div");
   if (cls) div.className = cls;
   div.textContent = "[" + new Date().toLocaleTimeString() + "] " + msg;
-  $("console").appendChild(div);
-  $("console").scrollTop = $("console").scrollHeight;
+  box.appendChild(div);
+  while (box.childElementCount > 300) box.removeChild(box.firstChild);   // 防止万级日志撑爆
+  box.scrollTop = box.scrollHeight;
 }
 
 /* ---------- 工具 ---------- */
@@ -187,6 +232,12 @@ function fmtSize(n) {
 function fmtMtime(s) {
   if (!s || s.length !== 14) return "—";
   return s.slice(0, 4) + "-" + s.slice(4, 6) + "-" + s.slice(6, 8) + " " + s.slice(8, 10) + ":" + s.slice(10, 12);
+}
+function fmtEta(sec) {
+  if (!isFinite(sec) || sec < 0) return "—";
+  sec = Math.round(sec);
+  const m = Math.floor(sec / 60), s = sec % 60;
+  return m > 0 ? m + " 分 " + s + " 秒" : s + " 秒";
 }
 function joinRemote(base, rel) {
   if (rel.startsWith("/")) base = "";   // 绝对路径不叠加到当前目录
@@ -418,28 +469,61 @@ async function mkdir() {
   }
 }
 
-/* ---------- 队列与上传 ---------- */
+/* ---------- 队列（数据与显示分离：万级入队只动数组，DOM 只画窗口） ---------- */
 function addFiles(files, getRel) {
-  let n = 0;
+  const seen = new Set(queue.map(q => q.rel));
+  let n = 0, bytes = 0;
   for (const f of files) {
     const rel = (getRel(f) || f.name).replace(/^\.?\//, "");
-    if (queue.some(q => q.rel === rel)) continue;
-    const row = document.createElement("div");
-    row.className = "qitem";
-    row.innerHTML = '<span class="nm"></span><span class="bar"><i></i></span><span class="st">等待</span>';
-    row.querySelector(".nm").textContent = rel + "  (" + fmtSize(f.size) + ")";
-    queue.push({ rel, file: f, row, barEl: row.querySelector("i"), stEl: row.querySelector(".st") });
-    $("queue").appendChild(row);
-    n++;
+    if (seen.has(rel)) continue;               // O(1) 查重，整批入队线性
+    seen.add(rel);
+    queue.push({ rel, file: f, status: "wait", _loaded: 0 });
+    queueBytes += f.size;
+    n++; bytes += f.size;
   }
-  if (n) log("入队 " + n + " 个文件");
+  if (n) log(`入队 ${n} 个文件（${fmtSize(bytes)}）`);
+  renderQueue();
+}
+
+function rowFor(it) {
+  const row = document.createElement("div");
+  row.className = "qitem";
+  row.innerHTML = '<span class="nm"></span><span class="bar"><i></i></span><span class="st"></span>';
+  row.querySelector(".nm").textContent = it.rel + "  (" + fmtSize(it.file.size) + ")";
+  it.rowEl = row;
+  it.barEl = row.querySelector("i");
+  it.stEl = row.querySelector(".st");
+  it.stEl.textContent = it.status === "run" ? "上传中…" : "等待";
+  return row;
+}
+
+function renderQueue() {
+  const box = $("queue");
+  const keepScroll = box.scrollTop;
+  box.innerHTML = "";
+  for (const it of inflight) box.appendChild(it.rowEl && it.rowEl.isConnected ? it.rowEl : rowFor(it));
+  const shown = queue.slice(0, QUEUE_WINDOW);
+  for (const it of shown) box.appendChild(rowFor(it));
+  if (queue.length > shown.length) {
+    const more = document.createElement("div");
+    more.className = "qmore";
+    more.textContent = `… 还有 ${queue.length - shown.length} 个待传未显示（完成后自动前移）`;
+    box.appendChild(more);
+  }
+  box.scrollTop = keepScroll;
+  const skipNote = state.skipCount ? `，已跳过 ${state.skipCount}` : "";
+  $("qsummary").textContent = (queue.length + inflight.length)
+    ? `待传 ${queue.length} 个 · 在传 ${inflight.length} 个${skipNote}`
+    : (state.skipCount ? `已跳过 ${state.skipCount} 个` : "");
   refreshQueueUi();
 }
 
 function refreshQueueUi() {
-  $("qsummary").textContent = queue.length ? queue.length + " 个待传" : "";
-  $("upload").disabled = !queue.length || state.uploading || !state.connected;
+  const busy = state.uploading || state.checking || state.scanning;
+  $("upload").disabled = !queue.length || state.uploading || !state.connected || state.checking;
   $("clear-queue").disabled = !queue.length || state.uploading;
+  $("pick-files").disabled = $("pick-dir").disabled = busy;
+  $("upload-game").disabled = busy;
 }
 
 function xhrPut(item) {
@@ -452,8 +536,10 @@ function xhrPut(item) {
     xhr.setRequestHeader("X-Ftp-Path", encodeURIComponent(remote));  // header 只能 ASCII，先转义
     xhr.upload.onprogress = e => {
       if (e.lengthComputable) {
-        item.barEl.style.width = (e.loaded / e.total * 100).toFixed(1) + "%";
-        item.stEl.textContent = fmtSize(e.loaded) + " / " + fmtSize(e.total);
+        if (item.barEl) item.barEl.style.width = (e.loaded / e.total * 100).toFixed(1) + "%";
+        if (item.stEl) item.stEl.textContent = fmtSize(e.loaded) + " / " + fmtSize(e.total);
+        stats.sent += e.loaded - (item._loaded || 0);
+        item._loaded = e.loaded;
       }
     };
     xhr.onload = () => {
@@ -493,14 +579,15 @@ async function xhrPutBatch(items) {
     xhr.setRequestHeader("X-Ftp-Port", String(state.port));
     xhr.setRequestHeader("X-Ftp-Dir", encodeURIComponent(dir));
     xhr.responseType = "json";
-    const batchBytes = total;
     xhr.upload.onprogress = e => {
       if (!e.lengthComputable) return;
       const frac = e.loaded / e.total;
       for (const it of items) {
-        it.barEl.style.width = Math.min(100, frac * 100).toFixed(1) + "%";
-        it.stEl.textContent = "批量 " + Math.round(frac * 100) + "%";
+        if (it.barEl) it.barEl.style.width = Math.min(100, frac * 100).toFixed(1) + "%";
+        if (it.stEl) it.stEl.textContent = "批量 " + Math.round(frac * 100) + "%";
       }
+      stats.sent += e.loaded - (items._loaded || 0);
+      items._loaded = e.loaded;
     };
     xhr.onload = () => {
       if (xhr.status === 200) return resolve(xhr.response || {});
@@ -516,6 +603,9 @@ async function xhrPutBatch(items) {
 
 async function filterIncremental() {
   if (!$("incremental").checked || !state.connected || !queue.length) return;
+  state.checking = true;
+  refreshQueueUi();
+  $("qsummary").textContent = `正在比对 PS5 上已有文件（${queue.length} 项，目录多时可能需要数十秒）…`;
   const manifest = queue.map(q => ({ name: q.rel, size: q.file.size }));
   try {
     const res = await api("/api/ftp/check", {
@@ -532,113 +622,140 @@ async function filterIncremental() {
     let skipped = 0;
     for (const q of queue) {
       if (need.has(q.rel)) keep.push(q);
-      else {
-        skipped++;
-        q.row.classList.add("ok");
-        q.barEl.style.width = "100%";
-        q.stEl.textContent = "跳过";
-        setTimeout(() => { try { $("queue").removeChild(q.row); } catch (e) {} }, 600);
-      }
+      else { q.status = "skip"; skipped++; }
     }
     queue.length = 0;
     queue.push(...keep);
+    state.skipCount = skipped;
     log(`增量续传：跳过 ${skipped} 个已存在（同大小），实际待传 ${queue.length} 个`, "g");
-    refreshQueueUi();
   } catch (e) {
     log("增量检查失败（" + (e.message || e) + "），按全量上传", "e");
+  } finally {
+    state.checking = false;
+    refreshQueueUi();
   }
+}
+
+/* ---------- 总进度面板（500ms 一拍，进度事件只累加计数不碰 DOM） ---------- */
+function statsTick(final) {
+  const now = Date.now();
+  const dt = Math.max(1, now - (stats.lastTs || now)) / 1000;
+  const inst = (stats.sent - stats.lastSent) / dt;
+  stats.speedNow = stats.speedNow ? stats.speedNow * 0.5 + inst * 0.5 : inst;
+  stats.lastTs = now;
+  stats.lastSent = stats.sent;
+  const elapsed = Math.max(0.001, (now - stats.t0) / 1000);
+  const avg = stats.sent / elapsed;
+  const pct = stats.bytes ? Math.min(100, stats.sent / stats.bytes * 100) : 0;
+  $("pbar-fill").style.width = pct.toFixed(1) + "%";
+  $("p-pct").textContent = pct.toFixed(1) + "%";
+  $("p-files").textContent = stats.done + " / " + stats.total;
+  $("p-bytes").textContent = fmtSize(stats.sent) + " / " + fmtSize(stats.bytes);
+  $("p-speed").textContent = fmtSize(stats.speedNow) + "/s";
+  $("p-avg").textContent = fmtSize(avg) + "/s";
+  $("p-eta").textContent = final ? "完成" : fmtEta((stats.bytes - stats.sent) / (stats.speedNow || avg || 1));
+}
+
+function startStats() {
+  stats.total = queue.length;
+  stats.done = 0;
+  stats.bytes = queue.reduce((a, q) => a + q.file.size, 0);
+  stats.sent = 0;
+  stats.speedNow = 0;
+  stats.lastSent = 0;
+  stats.lastTs = stats.t0 = Date.now();
+  $("progress").classList.remove("hidden");
+  statsTick();
+  clearInterval(statsTimer);
+  statsTimer = setInterval(() => statsTick(false), 500);
 }
 
 async function uploadAll() {
   if (!queue.length) return;
   await filterIncremental();
-  if (!queue.length) { log("队列里的文件 PS5 上都已存在，无需上传", "g"); return; }
+  if (!queue.length) { log("队列里的文件 PS5 上都已存在，无需上传", "g"); renderQueue(); return; }
   state.uploading = true;
+  startStats();
   refreshQueueUi();
   const total = queue.length;
   const lanes = Math.min(UPLOAD_LANES, total);
-  log(`开始上传 ${total} 个文件 → ${state.path}（${lanes} 路批量搬运，写入并发由服务端自适应）`);
+  log(`开始上传 ${total} 个文件（${fmtSize(stats.bytes)}）→ ${state.path}（${lanes} 路批量搬运，写入并发由服务端自适应）`);
   let ok = 0, fail = 0, stopped = false;
-  let alive = 0;                       // 在岗 worker 数（含正在收尾的）
 
   async function worker() {
-    alive++;
-    try {
-      while (queue.length && !stopped) {
-        // 聚合队首连续的小文件成一个批量请求；大文件/单个文件走单发
-        const batch = [];
-        let bytes = 0;
-        while (queue.length && batch.length < BATCH_MAX_FILES
-               && queue[0].file.size <= BATCH_SMALL
-               && bytes + queue[0].file.size <= BATCH_MAX_BYTES) {
-          const it = queue.shift();
-          batch.push(it);
-          bytes += it.file.size;
+    while (queue.length && !stopped) {
+      // 聚合队首连续的小文件成一个批量请求；大文件/单个文件走单发
+      const batch = [];
+      let bytes = 0;
+      while (queue.length && batch.length < BATCH_MAX_FILES
+             && queue[0].file.size <= BATCH_SMALL
+             && bytes + queue[0].file.size <= BATCH_MAX_BYTES) {
+        batch.push(queue.shift());
+        bytes += batch[batch.length - 1].file.size;
+      }
+      if (batch.length === 0) batch.push(queue.shift());   // 队首是大文件：单发
+      inflight.push(...batch);
+      queueBytes = Math.max(0, queueBytes - bytes);
+      renderQueue();
+      const mark = (it, cls, text) => {
+        it.status = cls === "ok" ? "done" : "err";
+        if (it.rowEl) {
+          it.rowEl.classList.add(cls);
+          if (it.barEl) it.barEl.style.width = "100%";
+          if (it.stEl) it.stEl.textContent = text;
         }
-        if (batch.length === 0) batch.push(queue.shift());   // 队首是大文件：单发
-        if (batch.length === 1) {
-          const item = batch[0];
-          item.stEl.textContent = "上传中…";
-          try {
-            const { remote } = await xhrPut(item);
-            ok++;
-            item.row.classList.add("ok");
-            item.barEl.style.width = "100%";
-            item.stEl.textContent = "完成";
-            log("✓ " + remote, "g");
-            $("queue").removeChild(item.row);
-          } catch (e) {
-            fail++;
-            stopped = true;
-            const msg = String(e.message || e);
-            item.row.classList.add("err");
-            item.row.title = item.rel + "  " + msg;
-            item.stEl.textContent = "失败：" + (msg.length > 18 ? msg.slice(0, 17) + "…" : msg);
-            log("✗ " + item.rel + "：" + msg, "e");
-          }
-          continue;
+      };
+      if (batch.length === 1) {
+        const item = batch[0];
+        if (item.stEl) item.stEl.textContent = "上传中…";
+        try {
+          const { remote } = await xhrPut(item);
+          mark(item, "ok", "完成");
+          ok++; stats.done++;
+          log("✓ " + remote, "g");
+        } catch (e) {
+          fail++;
+          stopped = true;
+          const msg = String(e.message || e);
+          mark(item, "err", "失败");
+          item.rowEl && (item.rowEl.title = item.rel + "  " + msg);
+          log("✗ " + item.rel + "：" + msg, "e");
         }
-        if (batch.length > 1) {
-          const names = new Map(batch.map(it => [it.file.name, it]));
-          try {
-            const res = await xhrPutBatch(batch);
-            const okMap = new Map((res.ok || []).map(r => [r.name, r.ms]));
-            const errMap = new Map((res.failed || []).map(r => [r.name, r.error]));
-            for (const it of batch) {
-              if (okMap.has(it.rel)) {
-                ok++;
-                it.row.classList.add("ok");
-                it.barEl.style.width = "100%";
-                it.stEl.textContent = "完成";
-                $("queue").removeChild(it.row);
-              } else {
-                fail++;
-                stopped = true;
-                const msg = String(errMap.get(it.rel) || "未知错误");
-                it.row.classList.add("err");
-                it.row.title = it.rel + "  " + msg;
-                it.stEl.textContent = "失败：" + (msg.length > 18 ? msg.slice(0, 17) + "…" : msg);
-                log("✗ " + it.rel + "：" + msg, "e");
-              }
+      } else {
+        try {
+          const res = await xhrPutBatch(batch);
+          const okMap = new Map((res.ok || []).map(r => [r.name, r.ms]));
+          const errMap = new Map((res.failed || []).map(r => [r.name, r.error]));
+          let batchOk = 0;
+          for (const it of batch) {
+            if (okMap.has(it.rel)) {
+              mark(it, "ok", "完成");
+              ok++; stats.done++; batchOk++;
+            } else {
+              fail++;
+              stopped = true;
+              const msg = String(errMap.get(it.rel) || "未知错误");
+              mark(it, "err", "失败");
+              it.rowEl && (it.rowEl.title = it.rel + "  " + msg);
+              log("✗ " + it.rel + "：" + msg, "e");
             }
-            const nOk = (res.ok || []).length;
-            if (nOk) log(`✓ 批量 ${nOk} 个小文件` + (res.lanes ? `（服务端 ${res.lanes} 路写入）` : ""), "g");
-          } catch (e) {
-            fail += batch.length;
-            stopped = true;
-            const msg = String(e.message || e);
-            for (const it of batch) {
-              it.row.classList.add("err");
-              it.row.title = it.rel + "  " + msg;
-              it.stEl.textContent = "失败";
-            }
-            log("✗ 批量上传失败（" + batch.length + " 个）：" + msg, "e");
           }
-          continue;
+          if (batchOk) log(`✓ 批量 ${batchOk} 个小文件` + (res.lanes ? `（服务端 ${res.lanes} 路写入）` : ""), "g");
+        } catch (e) {
+          fail += batch.length;
+          stopped = true;
+          const msg = String(e.message || e);
+          for (const it of batch) { mark(it, "err", "失败"); it.rowEl && (it.rowEl.title = it.rel + "  " + msg); }
+          log("✗ 批量上传失败（" + batch.length + " 个）：" + msg, "e");
         }
       }
-    } finally {
-      alive--;
+      // 完成的移出在传；失败的放回队首（续传时重试），其余留在队里
+      for (let i = inflight.length - 1; i >= 0; i--) {
+        const it = inflight[i];
+        if (it.status === "done") inflight.splice(i, 1);
+        else if (it.status === "err") { inflight.splice(i, 1); queue.unshift(it); }
+      }
+      renderQueue();
     }
   }
 
@@ -649,21 +766,29 @@ async function uploadAll() {
     p.then(() => workers.delete(p), () => workers.delete(p));
   }
   await Promise.all([...workers]);
+  clearInterval(statsTimer);
+  statsTick(true);
   state.uploading = false;
   refreshQueueUi();
   if (stopped) {
-    log(`已停止：成功 ${ok}，失败 ${fail}，剩余 ${queue.length} 个留在队列。原因见上方红色行 / 行悬停提示；处理后可点“开始上传”续传。`, "e");
+    log(`已停止：成功 ${ok}，失败 ${fail}，剩余 ${queue.length} 个留在队列。原因见红色行 / 行悬停提示；处理后可点“开始上传”续传。`, "e");
   } else {
-    log("上传结束：成功 " + ok + "，失败 0", "g");
+    log(`上传结束：成功 ${ok} 个（${fmtSize(stats.sent)}），用时 ${fmtEta((Date.now() - stats.t0) / 1000)}`, "g");
     load(state.path);
   }
 }
 
-/* ---------- 拖拽（支持整个文件夹） ---------- */
+/* ---------- 拖拽（支持整个文件夹，扫描时实时反馈） ---------- */
+let scanCount = 0, scanBytes = 0, scanTimer = 0;
+
 function scanEntry(entry, prefix, out) {
   return new Promise(resolve => {
     if (entry.isFile) {
-      entry.file(f => { out.push({ f, rel: prefix + entry.name }); resolve(); }, () => resolve());
+      entry.file(f => {
+        out.push({ f, rel: prefix + entry.name });
+        scanCount++; scanBytes += f.size;
+        resolve();
+      }, () => resolve());
     } else if (entry.isDirectory) {
       const reader = entry.createReader();
       const read = () => reader.readEntries(async ents => {
@@ -696,9 +821,9 @@ $("upload-game").onclick = async () => {
   $("f-files").click();
 };
 $("clear-queue").onclick = () => {
-  for (const q of queue) $("queue").removeChild(q.row);
   queue.length = 0;
-  refreshQueueUi();
+  queueBytes = 0;
+  renderQueue();
 };
 
 const dz = $("dropzone");
@@ -712,10 +837,23 @@ dz.addEventListener("drop", async e => {
   const items = [...(e.dataTransfer.items || [])];
   const out = [];
   const seen = new Set();
-  for (const it of items) {
-    if (it.kind !== "file") continue;
-    const entry = it.webkitGetAsEntry && it.webkitGetAsEntry();
-    if (entry && !seen.has(entry)) { seen.add(entry); await scanEntry(entry, "", out); }
+  scanCount = 0; scanBytes = 0;
+  dz.classList.add("busy");
+  dz.textContent = "正在扫描拖入的内容…";
+  clearInterval(scanTimer);
+  scanTimer = setInterval(() => {               // 扫描可能持续数十秒：实时反馈，不会像卡死
+    dz.textContent = `正在扫描… 已发现 ${scanCount} 个文件（${fmtSize(scanBytes)}）`;
+  }, 300);
+  try {
+    for (const it of items) {
+      if (it.kind !== "file") continue;
+      const entry = it.webkitGetAsEntry && it.webkitGetAsEntry();
+      if (entry && !seen.has(entry)) { seen.add(entry); await scanEntry(entry, "", out); }
+    }
+  } finally {
+    clearInterval(scanTimer);
+    dz.classList.remove("busy");
+    dz.textContent = "把 文件 / 整个文件夹 拖到这里，或用下方按钮选择";
   }
   if (out.length) addFiles(out.map(o => o.f), f => {
     const hit = out.find(o => o.f === f);
