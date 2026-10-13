@@ -72,7 +72,7 @@ Container Station 若支持 LXD，可建 Ubuntu 容器直接跑 flex36ty 的 `se
 | 文件 | 作用 |
 |---|---|
 | `docker-compose.yml` | macvlan 给容器独立内网 IP（避开 QTS 自占的 80/443），挂仓库根为站点目录 |
-| `ps5-dnsmasq.conf` | DNS：接管 `manuals.playstation.net`，屏蔽 PS5/PS4 更新域名，上游国内 DNS |
+| `ps5-dnsmasq.conf` | DNS：接管 `manuals.playstation.net`，屏蔽 PS5/PS4 更新域名，上游国内 DNS；例外放行 `store.playstation.com` / `image.api.playstation.com`（商店元数据与封面抓取） |
 | `start.sh` | 容器入口：装依赖 → 自签证书（SAN，幂等）→ 起 dnsmasq + nginx（含 `/document` 302） |
 
 仅供教育与研究用途，仅限自有设备；屏蔽更新、修改 DNS 均有风险，见主 README 免责声明。

@@ -69,6 +69,11 @@ services:
         cache-size=1000
         local=/manuals.playstation.net/
         address=/manuals.playstation.net/$$LAN_IP
+        # 商店元数据抓取例外放行（store_meta）：最长匹配优先，穿透下面的泛域 NXDOMAIN
+        # store.playstation.com（商店页：中文名/简介/发行商/发售日）
+        # image.api.playstation.com（封面 CDN，?w=440，存 covers/）
+        server=/store.playstation.com/223.5.5.5
+        server=/image.api.playstation.com/223.5.5.5
         # manuals 劫持保留（dnsmasq 按最长匹配优先，不会被下面的泛域覆盖）
         address=/playstation.net/
         address=/playstation.com/

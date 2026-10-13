@@ -51,7 +51,7 @@ Windows 可用 [etaHEN 仓库](https://github.com/etaHEN/etaHEN) 的 `send_paylo
 ### 托管
 
 - **GitHub Pages**：Fork/推送到你的仓库 → Settings → Pages → 选择 main 分支 → 用 `https://<用户名>.github.io/psx/` 访问。
-- **局域网（Windows 一体化）**：双击 `start-host.bat`（或 `python serve.py`）——一个进程全包：HTTP 80 站点 + HTTPS 443 用户指南入口（自动证书）+ DNS 53（索尼域名全拦、manuals 劫持）。需放行防火墙 53/80/443；若 53 被占多为 Windows 的 ICS/移动热点（管理员执行 `net stop sharedaccess` 释放，或在 services.msc 禁用 Internet Connection Sharing），代理客户端（Clash/mihomo）的 DNS 监听也会占 53。PS5 DNS 首选填电脑 IP 即启用拦截+指南入口。
+- **局域网（Windows 一体化）**：双击 `start-host.bat`（或 `python serve.py`）——一个进程全包：HTTP 80 站点 + HTTPS 443 用户指南入口（自动证书）+ DNS 53（索尼域名全拦、manuals 劫持；例外放行 `store.playstation.com` / `image.api.playstation.com` 供商店元数据与封面抓取）。需放行防火墙 53/80/443；若 53 被占多为 Windows 的 ICS/移动热点（管理员执行 `net stop sharedaccess` 释放，或在 services.msc 禁用 Internet Connection Sharing），代理客户端（Clash/mihomo）的 DNS 监听也会占 53。PS5 DNS 首选填电脑 IP 即启用拦截+指南入口。
 - **传文件到 PS5（网页 FTP + 文件管理）**：破解页自动加载完成后（含独立 FTP），电脑/手机浏览器打开 `http://<电脑IP>/ftp.html`，填 PS5 的 IP、端口 2121 即可管理 PS5 文件（ftpsrv，无需安装 FileZilla 等客户端）。支持：**一键上传游戏镜像**（自动进入 `/data/homebrew`，ShadowMountPlus 的默认扫描第一目录，约 15 秒自动扫描）；整个文件夹拖拽上传（RetroArch、BIOS、ROM 都能传）；浏览/新建/重命名/移动/递归删除；把文件或整个文件夹（自动打包 zip）下载回电脑备份。
 - **NAS 全套自托管（推荐）**：见 [selfhost/README.md](selfhost/README.md)——dnsmasq + nginx 容器（QNAP Container Station/macvlan），DNS 接管「用户指南」入口直达本页，并屏蔽索尼更新域名防手滑升级，不依赖任何公共 exploit DNS。NAS 不方便 SSH 的用 [selfhost/onefile/ 单文件版](selfhost/onefile/README.md)：一个 YAML 粘贴即部署。
 
