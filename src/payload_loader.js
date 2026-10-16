@@ -22,25 +22,23 @@ const PAYLOADS = [
     source: "https://github.com/drakmor/ShadowMountPlus",
   },
   {
-    file: "zftpd.elf",
-    id: "zftpd",
-    title: "zftpd（2120 / 8888）",
-    desc: "FTP(:2120) + ZHTTP 网页管理(:8888)，随一键加载自动发送；之后打开 ftp.html（端口 2120）或直连 PS5:8888 即可管理文件。",
-    source: "https://github.com/seregonwar/zftpd",
+    file: "ftpsrv.elf",
+    id: "ftpsrv",
+    title: "独立 FTP 服务（2121）",
+    desc: "独立 FTP 服务器（ps5-payload-sdk ftpsrv），监听 2121；打开 ftp.html（端口 2121）即可管理 PS5 文件。",
+    source: "https://github.com/ps5-payload-dev/ftpsrv",
   },
   {
     file: "panplay.elf",
     id: "panplay",
-    title: "panplay（8734）",
+    title: "panplay v0.2.1（8734）",
     desc: "百度网盘安装器，监听 8734；加载后用浏览器打开 http://<PS5 IP>:8734（访问码见主机通知）。",
-    source: "https://github.com/cnwinds/panplay",
+    source: "https://github.com/cnwinds/pan-play",
   },
 ];
 
-// kstuff patches the kernel first, ShadowMountPlus then mounts game images
-// (its kstuff auto-pause logic expects kstuff to be alive); zftpd brings up
-// FTP/ZHTTP, panplay the Baidu netdisk installer.
-const AUTO_CHAIN = ["kstuff.elf", "shadowmountplus.elf", "zftpd.elf", "panplay.elf"];
+// kstuff → SMP → ftpsrv。panplay 开发中易崩，不进自动链，页面底部单独加载调试。
+const AUTO_CHAIN = ["kstuff.elf", "shadowmountplus.elf", "ftpsrv.elf"];
 const AUTO_STEP_DELAY_MS = 4000;
 
 let runtime = null;
@@ -177,55 +175,79 @@ export async function runAutoChain() {
       await sleep(AUTO_STEP_DELAY_MS);
     }
   }
-  log("一键加载流程结束，向主机确认端口状态…");
+  log("一键加载流程结束，探测本机 127.0.0.1 端口…");
   if (button) button.disabled = false;
   await verifyPorts();
 }
 
-// 让主机端探测发起请求的设备（就是本机 PS5）的端口，逐个报告监听状态。
-const PORT_INFO = {
-  9021: { name: "elfldr（payload 加载器）", hint: "已退出，需重跑一遍破解流程" },
-  2120: { name: "FTP（zftpd）", hint: "传文件前先发送「zftpd」卡片" },
-  8888: { name: "ZHTTP（zftpd）", hint: "网页文件管理，直连 PS5:8888" },
-  8734: { name: "panplay（网盘安装）", hint: "先发送「panplay」卡片" },
-};
+const LOCAL_SERVICES = [
+  { port: 9021, name: "elfldr" },
+  { port: 2121, name: "ftpsrv" },
+  { port: 8734, name: "panplay" },
+];
+
+async function probeLocalPort(port) {
+  // 在 PS5 本机用 ROP connect 127.0.0.1:port，不经过主机、也不需要局域网 IP
+  const p = runtime.p;
+  const chain = runtime.chain;
+  const addr = p.malloc(0x10, 1);
+  for (let i = 0; i < 0x10; i++) p.write1(addr.add32(i), 0);
+  p.write1(addr.add32(0x0), 0x10);
+  p.write1(addr.add32(0x1), AF_INET);
+  p.write2(addr.add32(0x2), ((port & 0xff) << 8) | ((port >> 8) & 0xff));
+  p.write4(addr.add32(0x4), (127) | (0 << 8) | (0 << 16) | (1 << 24));
+
+  const fd = ((await chain.syscall(SYS_SOCKET, AF_INET, SOCK_STREAM, 0)).low | 0);
+  if (fd < 0) return false;
+  try {
+    const connected = (await chain.syscall(SYS_CONNECT, fd, addr, 0x10)).low | 0;
+    return connected === 0;
+  } finally {
+    await chain.syscall(SYS_CLOSE, fd);
+  }
+}
 
 async function verifyPorts() {
-  const probe = async () => {
-    try {
-      return await (await fetch("/api/jbstate", { cache: "no-store" })).json();
-    } catch (error) {
-      return null;
-    }
-  };
-
-  let state = await probe();
-  // zftpd / panplay 刚发的话监听可能晚几秒：没探齐就等 3 秒复查一次再下结论
-  if (!state || !state.ports["9021"] || !state.ports["2120"]) {
-    log("等待 3 秒后复查端口…");
-    await sleep(3000);
-    state = await probe();
-  }
-  if (!state) {
-    log("无法向主机确认状态（探测接口无响应），请在 ftp.html 里手动连接验证", "error");
+  if (!runtime) {
+    log("无 ROP 原语，跳过本机端口探测", "error");
     return;
   }
 
-  log("—— 端口验证（" + state.ip + "）——", "info");
-  for (const [port, info] of Object.entries(PORT_INFO)) {
-    const up = !!state.ports[port];
-    log((up ? "✓ " : "✗ ") + port + "  " + info.name + (up ? "  在监听" : "  未监听（" + info.hint + "）"),
-      up ? "success" : "error");
+  await sleep(3000); // 刚发完 ELF，监听可能晚几秒
+
+  log("—— 服务存活检测（127.0.0.1）——", "info");
+  for (const svc of LOCAL_SERVICES) {
+    let alive = await probeLocalPort(svc.port);
+    if (!alive) {
+      await sleep(1500);
+      alive = await probeLocalPort(svc.port);
+    }
+    log(
+      (alive ? "✓ " : "✗ ") + "127.0.0.1:" + svc.port + "  " + svc.name + (alive ? "  存活" : "  未存活"),
+      alive ? "success" : "error",
+    );
   }
-  if (state.ports["2120"] || state.ports["8888"]) {
-    log("结论：zftpd 可用 —— /ftp.html（端口 2120）或直连 PS5:8888 传文件", "success");
-  } else if (state.ports["9021"]) {
-    log("结论：kstuff / ShadowMountPlus 已加载 —— 要传文件点「zftpd」卡片发送", "success");
-  } else {
-    log("结论：elfldr 已不在监听 —— payload 需要重跑一遍破解流程再发", "error");
+}
+
+function wireSendButtons() {
+  for (const entry of PAYLOADS) {
+    for (const id of ["send-" + entry.id, "reload-" + entry.id]) {
+      const button = document.getElementById(id);
+      if (!button || button.dataset.wired === "1") continue;
+      button.dataset.wired = "1";
+      button.addEventListener("click", () => {
+        sendPayload(entry.file);
+      });
+    }
   }
-  if (state.ports["8734"])
-    log("panplay 可用 —— 浏览器打开 http://" + state.ip + ":8734（访问码见主机通知）", "success");
+
+  const auto = document.getElementById("btn-autochain");
+  if (auto && auto.dataset.wired !== "1") {
+    auto.dataset.wired = "1";
+    auto.addEventListener("click", () => {
+      runAutoChain();
+    });
+  }
 }
 
 export function initializePayloadSender(p, chain) {
@@ -234,20 +256,8 @@ export function initializePayloadSender(p, chain) {
   const panel = document.getElementById("payload-panel");
   if (panel) panel.classList.remove("hidden");
 
-  for (const entry of PAYLOADS) {
-    const button = document.getElementById("send-" + entry.id);
-    if (button)
-      button.addEventListener("click", () => {
-        sendPayload(entry.file);
-      });
-  }
+  const panplayPanel = document.getElementById("panplay-debug");
+  if (panplayPanel) panplayPanel.classList.remove("hidden");
 
-  const auto = document.getElementById("btn-autochain");
-  if (auto)
-    auto.addEventListener("click", () => {
-      runAutoChain();
-    });
-
-  const checkbox = document.getElementById("autochain-opt");
-  if (checkbox && checkbox.checked) runAutoChain();
+  wireSendButtons();
 }

@@ -48,35 +48,49 @@ function getWebKitBase() {
   throw new Error("WebKit base not found");
 }
 
-async function run() {
-  // 先问主机端：本机（PS5）的 elfldr(9021) 是否仍在线——在线则内核破解仍有效
-  let state = null;
+let exploitRunning = false;
+
+function showStartPanel(visible) {
+  const panel = document.getElementById("jb-start");
+  if (panel) panel.classList.toggle("hidden", !visible);
+}
+
+function setStartBusy(busy) {
+  const btn = document.getElementById("btn-jailbreak");
+  if (!btn) return;
+  btn.disabled = !!busy;
+  btn.textContent = busy ? "破解进行中…" : "一键破解";
+}
+
+async function startJailbreak() {
+  if (exploitRunning) return;
+  exploitRunning = true;
+  showStartPanel(false);
+  document.getElementById("jb-banner")?.classList.add("hidden");
+  setStartBusy(true);
   try {
-    state = await (await fetch("/api/jbstate", { cache: "no-store" })).json();
+    await runExploit();
   } catch (error) {
-    writeLog(`破解状态检测失败（${error}），按未破解处理`, "info");
+    fail(error);
+    showStartPanel(true);
+    setStartBusy(false);
+  } finally {
+    exploitRunning = false;
   }
-  if (state && state.jailbroken) {
-    const open = Object.entries(state.ports).filter(([, v]) => v).map(([p]) => p);
-    const elfldrAlive = !!state.ports["9021"];
-    document.getElementById("jb-ports").textContent = open.join(" / ");
-    document.getElementById("jb-banner").classList.remove("hidden");
-    document.getElementById("btn-reexploit").onclick = () => {
-      document.getElementById("jb-banner").classList.add("hidden");
-      writeLog("手动触发：重新走完整破解流程");
-      runExploit().catch(fail);
-    };
-    if (elfldrAlive) {
-      writeLog(`检测到 elfldr(9021) 仍在监听（端口 ${open.join("、")}），跳过漏洞利用。` +
-        "注意：页面内直发 payload 需要漏洞原语，已破解续传时请从电脑发送：nc <PS5的IP> 9021 < payloads/xxx.elf", "success");
-    } else {
-      writeLog(`检测到 zftpd/panplay 在线但 elfldr(9021) 已不在监听。` +
-        "传文件可继续用 /ftp.html 或 :8888；要再发 payload 须点「重新走完整破解流程」。", "success");
-    }
-    return;
-  }
-  writeLog("elfldr 未在监听（9021/2120/8888/8734 均无响应），开始漏洞利用");
-  await runExploit();
+}
+
+async function run() {
+  // 打开页时不做主机侧端口探测（经公网访问会误用公网 IP）。
+  // 存活检测改在破解/加载完成后，由 payload_loader 在 PS5 本机 connect 127.0.0.1。
+  const btn = document.getElementById("btn-jailbreak");
+  if (btn) btn.onclick = () => startJailbreak();
+  const re = document.getElementById("btn-reexploit");
+  if (re) re.onclick = () => startJailbreak();
+
+  document.getElementById("jb-banner")?.classList.add("hidden");
+  showStartPanel(true);
+  setStartBusy(false);
+  writeLog("点击「一键破解」开始（不会自动探测端口；加载完成后会检查 127.0.0.1）。", "info");
 }
 
 function fail(error) {

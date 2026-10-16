@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>传文件到 PS5 · FTP(2120)</title>
+  <title>传文件到 PS5 · FTP(2121)</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
@@ -111,17 +111,17 @@
 <body>
 <div class="wrap">
   <h1>传文件到 PS5 <span class="accent">· FTP</span></h1>
-  <div class="subtitle">浏览器直连 PS5 的 FTP 服务（zftpd，端口 2120），由本页所在主机转发 —— 无需安装 FileZilla 等客户端。</div>
+  <div class="subtitle">浏览器直连 PS5 的 FTP 服务（ftpsrv，端口 2121），由本页所在主机转发 —— 无需安装 FileZilla 等客户端。</div>
 
   <div class="card">
     <div class="row">
       <input type="text" id="host" placeholder="PS5 的 IP（如 192.168.3.x）" spellcheck="false">
-      <input type="number" id="port" value="2120" min="1" max="65535">
+      <input type="number" id="port" value="2121" min="1" max="65535">
       <button id="connect">连接</button>
       <span id="conn-state" style="color:#777;font-size:13px;"></span>
     </div>
     <div class="hint">
-      前提：PS5 已跑完破解流程，且已发送 zftpd（监听 2120，任意账号可登录）。
+      前提：PS5 已跑完破解流程，且已发送独立 FTP（ftpsrv，监听 2121）。
       PS5 的 IP 在 设置 → 网络 → 连接状态 里看。
     </div>
   </div>
@@ -191,7 +191,7 @@
 <script>
 "use strict";
 const $ = id => document.getElementById(id);
-const state = { host: "", port: 2120, path: "/", connected: false, uploading: false, total: 0, shown: 0 };
+const state = { host: "", port: 2121, path: "/", connected: false, uploading: false, total: 0, shown: 0 };
 const PAGE = 500;  // 大目录分页渲染：一次最多追加的行数
 // 小文件批量：一个 HTTP 请求带多个文件，服务端连接池内并行落地，
 // 绕开浏览器同源并发(≈6)的上限——这是小文件吞吐的真正杠杆。
@@ -300,10 +300,11 @@ async function gotoPath(q) {
 /* ---------- 浏览 ---------- */
 async function connect() {
   const host = $("host").value.trim();
-  const port = parseInt($("port").value, 10) || 2120;
+  const port = parseInt($("port").value, 10) || 2121;
   if (!host) { log("请先填 PS5 的 IP", "e"); return; }
   state.host = host; state.port = port;
   localStorage.setItem("ps5ftp", host + ":" + port);
+  try { localStorage.setItem("psx.ps5ip", host); } catch (e) {}
   $("conn-state").textContent = "连接中…";
   try {
     const data = await api(listUrl("/"));
@@ -868,8 +869,8 @@ if (saved) {
   const [h, p] = saved.split(":");
   if (h) {
     $("host").value = h;
-    // 1337 是 etaHEN 时代、2121 是 ftpsrv 时代：都迁移到 zftpd 的 2120
-    if (p) $("port").value = (p === "1337" || p === "2121") ? "2120" : p;
+    // 1337 是 etaHEN 时代、2120 是 zftpd 时代：都迁移回 ftpsrv 的 2121
+    if (p) $("port").value = (p === "1337" || p === "2120") ? "2121" : p;
     connect();
   }
 }

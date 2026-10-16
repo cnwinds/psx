@@ -5,7 +5,7 @@
   DNS  : udp/53   —— 索尼全系域名 NXDOMAIN 拦截 + manuals.playstation.net 劫持到本机
   HTTPS: tcp/443  —— 用户指南/健康与安全指南入口（自签证书 + /document 回首页）
   HTTP : tcp/80   —— 站点本体（PS5 浏览器手输 http://本机IP/ 也可进入）
-  FTP  : 网页转发 —— /ftp.html 由本进程中转到 PS5 的 zftpd(2120)，电脑零客户端
+  FTP  : 网页转发 —— /ftp.html 由本进程中转到 PS5 的 ftpsrv(2121)，电脑零客户端
 
 PS5 侧设置：手动 DNS 首选填本机 IP，备用留空。
 """
@@ -47,8 +47,8 @@ BLOCKED_SUFFIXES = (
     "sonyinteractive.com",
 )
 GUIDE_DOMAIN = "manuals.playstation.net"    # 劫持到本机（用户指南入口）
-FTP_PORT_DEFAULT = 2120     # zftpd（独立 FTP payload）的默认监听端口（v1.5.0 起 2120）
-FTP_USER = "anonymous"      # zftpd 是开放服务器：任意账号密码均可登录
+FTP_PORT_DEFAULT = 2121     # ftpsrv（独立 FTP payload）的监听端口
+FTP_USER = "anonymous"      # ftpsrv 不校验账号密码，随便填
 FTP_PASS = "anonymous"
 ROOT = os.path.dirname(os.path.abspath(__file__))
 CERT = os.path.join(ROOT, "certs", "cert.pem")
@@ -109,6 +109,42 @@ def detect_lan_ip():
     finally:
         probe.close()
     return "127.0.0.1"
+
+
+def is_private_ipv4(ip):
+    """局域网 / 本机地址才适合做 PS5 端口探测；公网 IP 多半是端口转发看到的源地址。"""
+    try:
+        parts = [int(x) for x in ip.split(".")]
+        if len(parts) != 4 or any(p < 0 or p > 255 for p in parts):
+            return False
+    except ValueError:
+        return False
+    a, b = parts[0], parts[1]
+    if a == 10:
+        return True
+    if a == 172 and 16 <= b <= 31:
+        return True
+    if a == 192 and b == 168:
+        return True
+    if a == 127:
+        return True
+    return False
+
+
+def pick_probe_ip(client_ip, override=None):
+    """选择要探测的 PS5 地址：显式 ?ip=（须为内网）优先，否则用请求方内网地址。"""
+    if override:
+        override = override.strip()
+        if is_private_ipv4(override):
+            return override, None
+        return None, f"指定 IP {override} 不是局域网地址，已忽略"
+    if is_private_ipv4(client_ip):
+        return client_ip, None
+    return None, (
+        f"请求来源是公网地址 {client_ip}（常见于用公网 IP/端口转发打开本页），"
+        f"不能拿它当 PS5。请用局域网地址打开（如 http://192.168.x.x/），"
+        f"或在探测时带上 ?ip=<PS5局域网IP>"
+    )
 
 
 def find_port_owner(port, proto):
@@ -244,9 +280,9 @@ def dns_loop(host_ip):
         ).start()
 
 
-# ---------------- FTP 转发（网页 → PS5 zftpd:2120）----------------
+# ---------------- FTP 转发（网页 → PS5 ftpsrv:2121）----------------
 
-FTP_POOL_SIZE = 16         # zftpd 每连接一线程：多条控制连接并行收发。
+FTP_POOL_SIZE = 16         # ftpsrv 每连接一线程：多条控制连接并行收发。
                            # 槽位惰性建连（用到才连），空槽零开销。
                            # 浏览器同源并发上限约 6，更大的池主要服务小文件批量接口的内部并行
 
@@ -290,10 +326,10 @@ def _ftp_connect(host, port):
         ftp.timeout = 30            # PASV 数据连接同样用这个超时
         ftp.voidcmd("TYPE I")       # 二进制模式：部分 FTP 实现 ASCII 模式下拒绝 SIZE
     except ftplib.error_perm:
-        pass                        # 登录失败也先留着：zftpd 任意账号放行，别的服务器可能只警告
+        pass                        # 登录失败也先留着：ftpsrv 不校验，别的服务器可能只警告
     except OSError as error:
         raise ConnectionError(
-            f"连不上 {host}:{port}（{error}）—— 先在破解页发送「zftpd」payload，并核对 IP/端口（默认 2120）"
+            f"连不上 {host}:{port}（{error}）—— 先在破解页发送「独立 FTP 服务」，并核对 IP/端口（默认 2121）"
         ) from error
     return ftp
 
@@ -304,7 +340,7 @@ _ftp_idle = list(_ftp_slots)            # 空闲槽队列：16 槽高并发下�
 
 def ftp_run(host, port, fn, retry=True):
     """在连接池的一个槽里执行 fn(ftp)。空闲连接可能已被远端断开
-    （PS5 侧重启过 zftpd 属常态），失败时换新连接把 fn 再跑一次。"""
+    （PS5 侧重启过 ftpsrv 属常态），失败时换新连接把 fn 再跑一次。"""
     key = (host, port)
     with _ftp_pool_cv:
         while not _ftp_idle:
@@ -333,7 +369,7 @@ def ftp_run(host, port, fn, retry=True):
 
 
 def ftp_size(ftp, path):
-    """取远端文件大小。SIZE 前强制 TYPE I：部分服务器（pyftpdlib/zftpd 类）
+    """取远端文件大小。SIZE 前强制 TYPE I：部分服务器（pyftpdlib/ftpsrv 类）
     在列表等操作后会把会话切回 ASCII 模式并拒绝 SIZE。"""
     try:
         ftp.voidcmd("TYPE I")
@@ -595,7 +631,13 @@ def _sched_submit(host, port, path, files):
 
 # ---------------- 已破解检测（探测请求方即 PS5 本机的破解端口）----------------
 
-JB_PROBE_PORTS = (9021, 2120, 8888, 8734)   # elfldr / zftpd FTP / zftpd ZHTTP / panplay
+# 每个端口对应一个独立服务，探测结果分别报告
+JB_SERVICES = (
+    {"port": 9021, "id": "elfldr", "name": "elfldr"},
+    {"port": 2121, "id": "ftpsrv", "name": "ftpsrv"},
+    {"port": 8734, "id": "panplay", "name": "panplay"},
+)
+JB_PROBE_PORTS = tuple(s["port"] for s in JB_SERVICES)
 JB_PROBE_TIMEOUT = 0.6
 
 
@@ -679,8 +721,34 @@ class SiteHandler(SimpleHTTPRequestHandler):
 
     # ---- /api/ftp/* ----
     def _api_jbstate(self):
-        """探测发起请求的设备（就是 PS5）的破解相关端口：elfldr 在线则首页跳过漏洞利用。"""
-        ip = self.client_address[0]
+        """逐端口探测 PS5 上各服务是否存活，结果彼此独立。
+
+        探测目标必须是局域网 IP。经公网转发访问时 client_address 会变成公网地址
+        （例如 58.x），不能当 PS5 去扫——可传 ?ip=192.168.x.x 指定。
+        """
+        route = urlsplit(self.path)
+        query = parse_qs(route.query)
+        override = (query.get("ip") or query.get("host") or [None])[0]
+        client_ip = self.client_address[0]
+        ip, warn = pick_probe_ip(client_ip, override)
+
+        if not ip:
+            out(f"[jb] 跳过探测：client={client_ip} override={override!r} — {warn}")
+            services = [
+                {"port": s["port"], "id": s["id"], "name": s["name"], "alive": False}
+                for s in JB_SERVICES
+            ]
+            self._send_json(200, {
+                "ip": None,
+                "client_ip": client_ip,
+                "ports": {str(p): False for p in JB_PROBE_PORTS},
+                "services": services,
+                "elfldr": False,
+                "jailbroken": False,
+                "warning": warn,
+            })
+            return
+
         results = {}
         threads = []
         for port in JB_PROBE_PORTS:
@@ -691,14 +759,30 @@ class SiteHandler(SimpleHTTPRequestHandler):
             threads.append(thread)
         for thread in threads:
             thread.join()
-        open_ports = [p for p in JB_PROBE_PORTS if results.get(p)]
+
+        services = []
+        for svc in JB_SERVICES:
+            alive = bool(results.get(svc["port"]))
+            services.append({
+                "port": svc["port"],
+                "id": svc["id"],
+                "name": svc["name"],
+                "alive": alive,
+            })
+            mark = "up" if alive else "down"
+            out(f"[jb] {ip} :{svc['port']} {svc['name']} {mark}")
+
+        elfldr = bool(results.get(9021))
+        any_up = any(s["alive"] for s in services)
         self._send_json(200, {
             "ip": ip,
+            "client_ip": client_ip,
             "ports": {str(p): results.get(p, False) for p in JB_PROBE_PORTS},
-            "jailbroken": bool(open_ports),
+            "services": services,
+            "elfldr": elfldr,
+            "jailbroken": any_up,
+            "warning": warn,
         })
-        if open_ports:
-            out(f"[jb] {ip} elfldr 仍在线（端口 {open_ports}），页面跳过漏洞利用")
 
     def _api_list(self, query):
         try:
@@ -1007,7 +1091,7 @@ def main():
     if others:
         out(f"  备选 IP     : {', '.join(others[:3])}（选错就改脚本顶部 HOST_IP）")
     out(f"  PS5 浏览器  : http://{host_ip}/")
-    out(f"  传文件到 PS5 : http://{host_ip}/ftp.html （先在破解页发送 zftpd，端口 2120）")
+    out(f"  传文件到 PS5 : http://{host_ip}/ftp.html （先在破解页发送独立 FTP，端口 2121）")
     out(f"  PS5 手动 DNS: 首选 {host_ip}   备用留空")
     out("  指南入口    : 设置 → 用户指南（证书警告点继续）")
     out("-" * 54)
