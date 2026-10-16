@@ -148,7 +148,7 @@
         <div id="jb-banner-title" style="font-size:16px;color:#81c784;margin-bottom:10px;">服务存活检测</div>
         <div id="jb-ports" style="font-size:13px;line-height:1.9;margin-bottom:10px;font-family:Consolas,Menlo,monospace;"></div>
         <div style="font-size:13px;color:#9ab;line-height:2;">
-          · <b>elfldr</b> 只应出现在 9021；2121 是 ftpsrv，8734 是 panplay<br>
+          · 上方状态由 <b>PS5 浏览器本机</b>探测 <code>127.0.0.1</code>（9021 elfldr / 2121 ftpsrv / 8734 panplay）<br>
           · <b>发送 payload</b>：页面内直发需先跑通漏洞链拿原语，或用电脑 <code>nc &lt;PS5 IP&gt; 9021 &lt; xxx.elf</code><br>
           · <b>传文件</b>：ftpsrv 存活时可开 <a href="/ftp.html" style="color:#4fc3f7">FTP 文件管理</a>（端口 2121）
         </div>
@@ -269,6 +269,6 @@
   <script src="./src/main.js"></script>
   <script src="./src/rop.js"></script>
   <script src="./src/utils/syscalls.js"></script>
-  <script type="module" src="./src/site.js?v=20261017b"></script>
+  <script type="module" src="./src/site.js?v=20261017c"></script>
 </body>
 </html>
