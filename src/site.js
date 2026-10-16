@@ -70,12 +70,12 @@ async function run() {
       writeLog(`检测到 elfldr(9021) 仍在监听（端口 ${open.join("、")}），跳过漏洞利用。` +
         "注意：页面内直发 payload 需要漏洞原语，已破解续传时请从电脑发送：nc <PS5的IP> 9021 < payloads/xxx.elf", "success");
     } else {
-      writeLog(`检测到独立 FTP(2121) 在线但 elfldr(9021) 已不在监听。` +
-        "传文件可继续用 /ftp.html；要再发 payload 须点「重新走完整破解流程」。", "success");
+      writeLog(`检测到 zftpd/websrv 在线但 elfldr(9021) 已不在监听。` +
+        "传文件可继续用 /ftp.html 或 :8888；要再发 payload 须点「重新走完整破解流程」。", "success");
     }
     return;
   }
-  writeLog("elfldr 未在监听（9021/2121 均无响应），开始漏洞利用");
+  writeLog("elfldr 未在监听（9021/2120/8888/8080 均无响应），开始漏洞利用");
   await runExploit();
 }
 

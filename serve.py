@@ -5,7 +5,7 @@
   DNS  : udp/53   —— 索尼全系域名 NXDOMAIN 拦截 + manuals.playstation.net 劫持到本机
   HTTPS: tcp/443  —— 用户指南/健康与安全指南入口（自签证书 + /document 回首页）
   HTTP : tcp/80   —— 站点本体（PS5 浏览器手输 http://本机IP/ 也可进入）
-  FTP  : 网页转发 —— /ftp.html 由本进程中转到 PS5 的 ftpsrv(2121)，电脑零客户端
+  FTP  : 网页转发 —— /ftp.html 由本进程中转到 PS5 的 zftpd(2120)，电脑零客户端
 
 PS5 侧设置：手动 DNS 首选填本机 IP，备用留空。
 """
@@ -47,8 +47,8 @@ BLOCKED_SUFFIXES = (
     "sonyinteractive.com",
 )
 GUIDE_DOMAIN = "manuals.playstation.net"    # 劫持到本机（用户指南入口）
-FTP_PORT_DEFAULT = 2121     # ftpsrv（独立 FTP payload）的监听端口
-FTP_USER = "anonymous"      # ftpsrv 不校验账号密码，随便填
+FTP_PORT_DEFAULT = 2120     # zftpd（独立 FTP payload）的默认监听端口（v1.5.0 起 2120）
+FTP_USER = "anonymous"      # zftpd 是开放服务器：任意账号密码均可登录
 FTP_PASS = "anonymous"
 ROOT = os.path.dirname(os.path.abspath(__file__))
 CERT = os.path.join(ROOT, "certs", "cert.pem")
@@ -244,9 +244,9 @@ def dns_loop(host_ip):
         ).start()
 
 
-# ---------------- FTP 转发（网页 → PS5 ftpsrv:2121）----------------
+# ---------------- FTP 转发（网页 → PS5 zftpd:2120）----------------
 
-FTP_POOL_SIZE = 16         # ftpsrv 每连接一线程：多条控制连接并行收发。
+FTP_POOL_SIZE = 16         # zftpd 每连接一线程：多条控制连接并行收发。
                            # 槽位惰性建连（用到才连），空槽零开销。
                            # 浏览器同源并发上限约 6，更大的池主要服务小文件批量接口的内部并行
 
@@ -290,10 +290,10 @@ def _ftp_connect(host, port):
         ftp.timeout = 30            # PASV 数据连接同样用这个超时
         ftp.voidcmd("TYPE I")       # 二进制模式：部分 FTP 实现 ASCII 模式下拒绝 SIZE
     except ftplib.error_perm:
-        pass                        # 登录失败也先留着：ftpsrv 不校验，别的服务器可能只警告
+        pass                        # 登录失败也先留着：zftpd 任意账号放行，别的服务器可能只警告
     except OSError as error:
         raise ConnectionError(
-            f"连不上 {host}:{port}（{error}）—— 先在破解页发送「独立 FTP 服务」，并核对 IP/端口"
+            f"连不上 {host}:{port}（{error}）—— 先在破解页发送「zftpd」payload，并核对 IP/端口（默认 2120）"
         ) from error
     return ftp
 
@@ -304,7 +304,7 @@ _ftp_idle = list(_ftp_slots)            # 空闲槽队列：16 槽高并发下�
 
 def ftp_run(host, port, fn, retry=True):
     """在连接池的一个槽里执行 fn(ftp)。空闲连接可能已被远端断开
-    （PS5 侧重启过 ftpsrv 属常态），失败时换新连接把 fn 再跑一次。"""
+    （PS5 侧重启过 zftpd 属常态），失败时换新连接把 fn 再跑一次。"""
     key = (host, port)
     with _ftp_pool_cv:
         while not _ftp_idle:
@@ -333,7 +333,7 @@ def ftp_run(host, port, fn, retry=True):
 
 
 def ftp_size(ftp, path):
-    """取远端文件大小。SIZE 前强制 TYPE I：部分服务器（pyftpdlib/ftpsrv 类）
+    """取远端文件大小。SIZE 前强制 TYPE I：部分服务器（pyftpdlib/zftpd 类）
     在列表等操作后会把会话切回 ASCII 模式并拒绝 SIZE。"""
     try:
         ftp.voidcmd("TYPE I")
@@ -360,7 +360,7 @@ def ftp_mkd_p(ftp, path, cache_key=None):
 
 
 def ftp_list(ftp, path):
-    """列目录。必须先 CWD 再用无参数 MLSD/NLST：ftpsrv 的 MLSD 会忽略路径参数、
+    """列目录。必须先 CWD 再用无参数 MLSD/NLST：部分实现的 MLSD 会忽略路径参数、
     只列服务器自己的当前目录（cmd.c: opendir(env->cwd)），带路径调用永远返回
     根目录的列表——表现为"点任何目录内容都不变"。"""
     path = posixpath.normpath(path)
@@ -595,7 +595,7 @@ def _sched_submit(host, port, path, files):
 
 # ---------------- 已破解检测（探测请求方即 PS5 本机的破解端口）----------------
 
-JB_PROBE_PORTS = (9021, 2121)   # elfldr（payload 通道）/ ftpsrv（独立 FTP）
+JB_PROBE_PORTS = (9021, 2120, 8888, 8080)   # elfldr / zftpd FTP / zftpd ZHTTP / websrv
 JB_PROBE_TIMEOUT = 0.6
 
 
@@ -1007,7 +1007,7 @@ def main():
     if others:
         out(f"  备选 IP     : {', '.join(others[:3])}（选错就改脚本顶部 HOST_IP）")
     out(f"  PS5 浏览器  : http://{host_ip}/")
-    out(f"  传文件到 PS5 : http://{host_ip}/ftp.html （先在破解页发送独立 FTP）")
+    out(f"  传文件到 PS5 : http://{host_ip}/ftp.html （先在破解页发送 zftpd，端口 2120）")
     out(f"  PS5 手动 DNS: 首选 {host_ip}   备用留空")
     out("  指南入口    : 设置 → 用户指南（证书警告点继续）")
     out("-" * 54)

@@ -22,18 +22,25 @@ const PAYLOADS = [
     source: "https://github.com/drakmor/ShadowMountPlus",
   },
   {
-    file: "ftpsrv.elf",
-    id: "ftpsrv",
-    title: "独立 FTP 服务（2121）",
-    desc: "独立 FTP 服务器（ps5-payload-sdk ftpsrv），监听 2121，随一键加载自动发送；之后打开 ftp.html（端口 2121）即可在电脑上管理 PS5 文件。",
-    source: "https://github.com/ps5-payload-dev/ftpsrv",
+    file: "zftpd.elf",
+    id: "zftpd",
+    title: "zftpd（2120 / 8888）",
+    desc: "FTP(:2120) + ZHTTP 网页管理(:8888)，随一键加载自动发送；之后打开 ftp.html（端口 2120）或直连 PS5:8888 即可管理文件。",
+    source: "https://github.com/seregonwar/zftpd",
+  },
+  {
+    file: "websrv.elf",
+    id: "websrv",
+    title: "websrv（8080）",
+    desc: "Homebrew 网页启动器，监听 8080；加载后用电脑/手机浏览器打开 http://<PS5 IP>:8080 浏览并启动 homebrew。",
+    source: "https://github.com/ps5-payload-dev/websrv",
   },
 ];
 
 // kstuff patches the kernel first, ShadowMountPlus then mounts game images
-// (its kstuff auto-pause logic expects kstuff to be alive), and ftpsrv brings
-// up the standalone FTP server for /ftp.html.
-const AUTO_CHAIN = ["kstuff.elf", "shadowmountplus.elf", "ftpsrv.elf"];
+// (its kstuff auto-pause logic expects kstuff to be alive); zftpd brings up
+// FTP/ZHTTP, websrv the homebrew launcher.
+const AUTO_CHAIN = ["kstuff.elf", "shadowmountplus.elf", "zftpd.elf", "websrv.elf"];
 const AUTO_STEP_DELAY_MS = 4000;
 
 let runtime = null;
@@ -178,7 +185,9 @@ export async function runAutoChain() {
 // 让主机端探测发起请求的设备（就是本机 PS5）的端口，逐个报告监听状态。
 const PORT_INFO = {
   9021: { name: "elfldr（payload 加载器）", hint: "已退出，需重跑一遍破解流程" },
-  2121: { name: "独立 FTP（ftpsrv）", hint: "传文件前先发送「独立 FTP 服务」卡片" },
+  2120: { name: "FTP（zftpd）", hint: "传文件前先发送「zftpd」卡片" },
+  8888: { name: "ZHTTP（zftpd）", hint: "网页文件管理，直连 PS5:8888" },
+  8080: { name: "websrv（homebrew）", hint: "先发送「websrv」卡片" },
 };
 
 async function verifyPorts() {
@@ -191,8 +200,8 @@ async function verifyPorts() {
   };
 
   let state = await probe();
-  // ftpsrv 刚发的话监听可能晚几秒：没探齐就等 3 秒复查一次再下结论
-  if (!state || !state.ports["9021"] || !state.ports["2121"]) {
+  // zftpd / websrv 刚发的话监听可能晚几秒：没探齐就等 3 秒复查一次再下结论
+  if (!state || !state.ports["9021"] || !state.ports["2120"]) {
     log("等待 3 秒后复查端口…");
     await sleep(3000);
     state = await probe();
@@ -208,13 +217,15 @@ async function verifyPorts() {
     log((up ? "✓ " : "✗ ") + port + "  " + info.name + (up ? "  在监听" : "  未监听（" + info.hint + "）"),
       up ? "success" : "error");
   }
-  if (state.ports["2121"]) {
-    log("结论：FTP 可用 —— 电脑浏览器打开 /ftp.html（端口 2121）即可传文件、装游戏", "success");
+  if (state.ports["2120"] || state.ports["8888"]) {
+    log("结论：zftpd 可用 —— /ftp.html（端口 2120）或直连 PS5:8888 传文件", "success");
   } else if (state.ports["9021"]) {
-    log("结论：kstuff / ShadowMountPlus 已加载 —— 要传文件点「独立 FTP 服务」卡片发送", "success");
+    log("结论：kstuff / ShadowMountPlus 已加载 —— 要传文件点「zftpd」卡片发送", "success");
   } else {
     log("结论：elfldr 已不在监听 —— payload 需要重跑一遍破解流程再发", "error");
   }
+  if (state.ports["8080"])
+    log("websrv 可用 —— 浏览器打开 http://" + state.ip + ":8080 启动 homebrew", "success");
 }
 
 export function initializePayloadSender(p, chain) {

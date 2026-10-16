@@ -55,7 +55,7 @@ nslookup ps5.update.playstation.net 192.168.1.250  # 应返回 NXDOMAIN
 curl -k https://192.168.1.250/ | head              # 应返回 exploit 页面 HTML
 ```
 
-**⑤ PS5 侧**：设置 → 网络 → 手动 DNS，**首选填 `192.168.1.250`，备用留空**（填了公共 DNS 会被轮询绕过劫持）→ 打开 设置 → 用户指南 → 弹证书警告**选择继续**（自签证书的正常现象）→ 落到 all-in-one 页面，照常跑漏洞链；elfldr 就绪后页面自动发送 kstuff → ShadowMountPlus → ftpsrv(独立FTP)，全程无需 PC。
+**⑤ PS5 侧**：设置 → 网络 → 手动 DNS，**首选填 `192.168.1.250`，备用留空**（填了公共 DNS 会被轮询绕过劫持）→ 打开 设置 → 用户指南 → 弹证书警告**选择继续**（自签证书的正常现象）→ 落到 all-in-one 页面，照常跑漏洞链；elfldr 就绪后页面自动发送 kstuff → ShadowMountPlus → zftpd → websrv，全程无需 PC。
 
 ## 三条红线
 
