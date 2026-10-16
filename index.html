@@ -126,7 +126,7 @@
         <span class="badge">kstuff-lite 1.11</span>
         <span class="badge">ShadowMountPlus 1.7beta4</span>
         <span class="badge">ftpsrv v0.21.1</span>
-        <span class="badge">panplay v0.2.1</span>
+        <span class="badge">panplay v0.2.2</span>
       </div>
     </div>
     <div class="subtitle">一站式主机：点「一键破解」再加载 payload；panplay 在页底单独发送，可反复调试。</div>
@@ -205,7 +205,7 @@
           <tr><td><a href="payloads/kstuff.elf" download>kstuff.elf</a></td><td>kstuff-lite 1.11 · 内核补丁</td><td class="size">1.7 MB</td></tr>
           <tr><td><a href="payloads/shadowmountplus.elf" download>shadowmountplus.elf</a></td><td>ShadowMountPlus 1.7beta4 · 自动挂载</td><td class="size">2.3 MB</td></tr>
           <tr><td><a href="payloads/ftpsrv.elf" download>ftpsrv.elf</a></td><td>独立 FTP 服务 · 端口 2121</td><td class="size">0.2 MB</td></tr>
-          <tr><td><a href="payloads/panplay.elf" download>panplay.elf</a></td><td>百度网盘安装器 v0.2.1 · 端口 8734</td><td class="size">5.5 MB</td></tr>
+          <tr><td><a href="payloads/panplay.elf" download>panplay.elf</a></td><td>百度网盘安装器 v0.2.2 · 端口 8734</td><td class="size">5.5 MB</td></tr>
           <tr><td><a href="payloads/elfldr-ps5-1360.elf" download>elfldr-ps5-1360.elf</a></td><td>elfldr · ELF 加载器（内核阶段自动使用）</td><td class="size">0.4 MB</td></tr>
           <tr><td><a href="payloads/kexp_2026_05_25.bin" download>kexp_2026_05_25.bin</a></td><td>kexp · 内核 payload 引导（自动使用）</td><td class="size">18 KB</td></tr>
         </table>
@@ -240,11 +240,11 @@
       <div class="panel-title">panplay 单独加载 <small>（开发调试：不进自动链，可反复点）</small></div>
       <div class="card" id="card-panplay" data-state="idle" style="margin:0;border-color:#5d4037;">
         <div class="row">
-          <span class="name">panplay v0.2.1 <small style="color:#777">(8734)</small></span>
+          <span class="name">panplay v0.2.2 <small style="color:#777">(8734)</small></span>
           <span class="status">待发送</span>
         </div>
         <div class="desc">百度网盘安装器。当前版本加载可能崩溃，用下方按钮单独发送到 9021 反复调试；成功后浏览器打开 <code>http://&lt;PS5 IP&gt;:8734</code>（访问码见主机通知）。</div>
-          <div class="src"><a href="https://github.com/cnwinds/pan-play">cnwinds/pan-play</a> · payloads/panplay.elf · v0.2.1</div>
+          <div class="src"><a href="https://github.com/cnwinds/pan-play">cnwinds/pan-play</a> · payloads/panplay.elf · v0.2.2</div>
         <div class="row-actions">
           <button id="reload-panplay" class="warn-btn">单独加载 panplay</button>
           <button class="small" id="send-panplay">再发一次</button>
@@ -269,6 +269,6 @@
   <script src="./src/main.js"></script>
   <script src="./src/rop.js"></script>
   <script src="./src/utils/syscalls.js"></script>
-  <script type="module" src="./src/site.js?v=20261017a"></script>
+  <script type="module" src="./src/site.js?v=20261017b"></script>
 </body>
 </html>

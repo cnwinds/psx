@@ -31,7 +31,7 @@ const PAYLOADS = [
   {
     file: "panplay.elf",
     id: "panplay",
-    title: "panplay v0.2.1（8734）",
+    title: "panplay v0.2.2（8734）",
     desc: "百度网盘安装器，监听 8734；加载后用浏览器打开 http://<PS5 IP>:8734（访问码见主机通知）。",
     source: "https://github.com/cnwinds/pan-play",
   },
