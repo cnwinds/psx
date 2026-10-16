@@ -595,7 +595,7 @@ def _sched_submit(host, port, path, files):
 
 # ---------------- 已破解检测（探测请求方即 PS5 本机的破解端口）----------------
 
-JB_PROBE_PORTS = (9021, 2120, 8888, 8080)   # elfldr / zftpd FTP / zftpd ZHTTP / websrv
+JB_PROBE_PORTS = (9021, 2120, 8888, 8734)   # elfldr / zftpd FTP / zftpd ZHTTP / panplay
 JB_PROBE_TIMEOUT = 0.6
 
 

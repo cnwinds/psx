@@ -112,16 +112,16 @@
         <span class="badge">kstuff-lite 1.11</span>
         <span class="badge">ShadowMountPlus 1.7beta4</span>
         <span class="badge">zftpd v1.6.0</span>
-        <span class="badge">websrv v0.34</span>
+        <span class="badge">panplay v0.1.6</span>
       </div>
     </div>
-    <div class="subtitle">一站式主机：浏览器漏洞 → 内核提权 → elfldr(9021) → kstuff / ShadowMountPlus / zftpd / websrv，全部在本页完成。</div>
+    <div class="subtitle">一站式主机：浏览器漏洞 → 内核提权 → elfldr(9021) → kstuff / ShadowMountPlus / zftpd / panplay，全部在本页完成。</div>
 
     <div class="steps">
       <div class="step"><b>1 · WebKit</b>用户态读写</div>
       <div class="step"><b>2 · Kernel</b>内核提权 / 沙箱逃逸</div>
       <div class="step"><b>3 · elfldr</b>监听 127.0.0.1:9021</div>
-      <div class="step"><b>4 · Payloads</b>kstuff → SMP → zftpd → websrv</div>
+      <div class="step"><b>4 · Payloads</b>kstuff → SMP → zftpd → panplay</div>
     </div>
 
     <div id="jb-banner" class="panel hidden">
@@ -130,7 +130,7 @@
         <div style="font-size:13px;color:#9ab;line-height:2;">
           · <b>发送 payload</b>：电脑上执行 <code>nc &lt;PS5的IP&gt; 9021 &lt; payloads/kstuff.elf</code> 等直发（页面内直发需先重跑漏洞链）<br>
           · <b>传文件</b>：自动加载已含 zftpd(2120/8888)，电脑打开 <a href="/ftp.html" style="color:#4fc3f7">FTP 文件管理</a> 或直连 PS5:8888<br>
-          · <b>homebrew</b>：websrv 加载后打开 <code>http://&lt;PS5 IP&gt;:8080</code><br>
+          · <b>网盘安装</b>：panplay 加载后打开 <code>http://&lt;PS5 IP&gt;:8734</code>（访问码见主机通知）<br>
           · <b>游戏</b>：镜像放 <code>/data/homebrew</code>（SMP 默认扫描第一目录），自动扫描挂载
         </div>
         <div style="margin-top:12px;">
@@ -176,14 +176,14 @@
           <div class="src"><a href="https://github.com/seregonwar/zftpd">seregonwar/zftpd</a> · payloads/zftpd.elf</div>
           <div class="row" style="margin-top:10px"><button class="small" id="send-zftpd">发送</button></div>
         </div>
-        <div class="card" id="card-websrv" data-state="idle">
+        <div class="card" id="card-panplay" data-state="idle">
           <div class="row">
-            <span class="name">websrv <small style="color:#777">(8080)</small></span>
+            <span class="name">panplay <small style="color:#777">(8734)</small></span>
             <span class="status">待发送</span>
           </div>
-          <div class="desc">Homebrew 网页启动器，监听 8080；加载后用浏览器打开 <code>http://&lt;PS5 IP&gt;:8080</code> 浏览并启动 homebrew。</div>
-          <div class="src"><a href="https://github.com/ps5-payload-dev/websrv">ps5-payload-dev/websrv</a> · payloads/websrv.elf</div>
-          <div class="row" style="margin-top:10px"><button class="small" id="send-websrv">发送</button></div>
+          <div class="desc">百度网盘安装器，监听 8734；加载后用浏览器打开 <code>http://&lt;PS5 IP&gt;:8734</code>（访问码见主机通知）。</div>
+          <div class="src"><a href="https://github.com/cnwinds/panplay">cnwinds/panplay</a> · payloads/panplay.elf</div>
+          <div class="row" style="margin-top:10px"><button class="small" id="send-panplay">发送</button></div>
         </div>
       </div>
     </div>
@@ -195,7 +195,7 @@
           <tr><td><a href="payloads/kstuff.elf" download>kstuff.elf</a></td><td>kstuff-lite 1.11 · 内核补丁</td><td class="size">1.7 MB</td></tr>
           <tr><td><a href="payloads/shadowmountplus.elf" download>shadowmountplus.elf</a></td><td>ShadowMountPlus 1.7beta4 · 自动挂载</td><td class="size">2.3 MB</td></tr>
           <tr><td><a href="payloads/zftpd.elf" download>zftpd.elf</a></td><td>FTP(2120) + ZHTTP(8888)</td><td class="size">0.5 MB</td></tr>
-          <tr><td><a href="payloads/websrv.elf" download>websrv.elf</a></td><td>Homebrew 网页启动器 · 端口 8080</td><td class="size">1.5 MB</td></tr>
+          <tr><td><a href="payloads/panplay.elf" download>panplay.elf</a></td><td>百度网盘安装器 · 端口 8734</td><td class="size">5.5 MB</td></tr>
           <tr><td><a href="payloads/elfldr-ps5-1360.elf" download>elfldr-ps5-1360.elf</a></td><td>elfldr · ELF 加载器（内核阶段自动使用）</td><td class="size">0.4 MB</td></tr>
           <tr><td><a href="payloads/kexp_2026_05_25.bin" download>kexp_2026_05_25.bin</a></td><td>kexp · 内核 payload 引导（自动使用）</td><td class="size">18 KB</td></tr>
         </table>
@@ -206,8 +206,8 @@
       <summary>使用说明</summary>
       <ol>
         <li>PS5 浏览器打开本页（固件 7.00 – 13.60），页面先探测本机是否已在破解状态（elfldr 9021 仍在线即跳过漏洞利用，直接发 payload）；未破解才自动开始漏洞利用，浏览器阶段偶发失败，卡住时刷新重试，内核阶段若死机则重启主机再来。</li>
-        <li>看到 <code>elfldr is listening on port 9021</code> 后，payload 面板会出现；默认勾选了自动加载（kstuff → ShadowMountPlus → zftpd → websrv），也可单独重发。</li>
-        <li>加载顺序：<code>kstuff.elf</code>（内核补丁）→ <code>shadowmountplus.elf</code>（挂载器）→ <code>zftpd.elf</code>（FTP 2120 / ZHTTP 8888）→ <code>websrv.elf</code>（8080）。</li>
+        <li>看到 <code>elfldr is listening on port 9021</code> 后，payload 面板会出现；默认勾选了自动加载（kstuff → ShadowMountPlus → zftpd → panplay），也可单独重发。</li>
+        <li>加载顺序：<code>kstuff.elf</code>（内核补丁）→ <code>shadowmountplus.elf</code>（挂载器）→ <code>zftpd.elf</code>（FTP 2120 / ZHTTP 8888）→ <code>panplay.elf</code>（8734）。</li>
         <li>游戏镜像放到 <code>/data/homebrew</code>（默认扫描第一目录；<code>/data/etaHEN/games</code>、<code>/data/shadowmount</code>、USB 根目录也都在扫描范围），ShadowMountPlus 每约 15 秒自动扫描挂载。</li>
         <li>也可以用 PC 手动发送（主机 IP 替换）：Linux/macOS <code>nc 192.168.x.x 9021 &lt; kstuff.elf</code>；Windows 可用社区 send_payload.ps1 脚本。</li>
         <li>重启后一切还原，需要重新走一遍本页流程；稳定性提示与免责声明见仓库 README。</li>
@@ -220,7 +220,7 @@
         <li><b>Relapse 漏洞链</b>（WebKit 用户态 → aio_multi_wait 内核 UAF → 提权）：跑通后由 kexp 在内核上下文拉起 <b>elfldr</b> 并监听 9021。</li>
         <li><b>elfldr</b>：接收 ELF 字节流并加载执行，是后续所有 payload 的入口（本页通过 ROP 直接向 127.0.0.1:9021 发送）。</li>
         <li><b>zftpd</b>：FTP(2120) + ZHTTP(8888)，不依赖任何 HEN 组件，elfldr 在就能发；配 /ftp.html 或直连 :8888。</li>
-        <li><b>websrv</b>：Homebrew 网页启动器（8080），浏览并启动 /data/homebrew 与 USB 上的 homebrew。</li>
+        <li><b>panplay</b>：百度网盘安装器（8734），网页端装游戏；访问码见主机通知。</li>
         <li><b>kstuff-lite</b>：内核补丁集（FSELF/FPKG、挂载等），ShadowMountPlus 依赖它运行。</li>
         <li><b>ShadowMountPlus</b>：依赖 kstuff-lite v1.07+，自动扫描/挂载/安装游戏镜像，含 kstuff 自动暂停恢复逻辑。</li>
       </ul>
@@ -232,7 +232,7 @@
         Payloads: <a href="https://github.com/EchoStretch/kstuff-lite">kstuff-lite</a> ·
         <a href="https://github.com/drakmor/ShadowMountPlus">ShadowMountPlus</a> ·
         <a href="https://github.com/seregonwar/zftpd">zftpd</a> ·
-        <a href="https://github.com/ps5-payload-dev/websrv">websrv</a>
+        <a href="https://github.com/cnwinds/panplay">panplay</a>
       </div>
       <div class="warn">仅供教育与研究用途，仅限在自有设备上使用；可能导致系统不稳定、数据丢失或账号封禁，风险自负。不支持盗版。</div>
     </div>

@@ -12,7 +12,7 @@ PS5 浏览器打开本页
    ├─ 4. kstuff.elf          内核补丁：FSELF / FPKG 支持（一切的基础）
    ├─ 5. shadowmountplus.elf 游戏镜像自动挂载（依赖 kstuff 运行）
    ├─ 6. zftpd.elf           FTP(2120) + ZHTTP 网页文件管理(8888)
-   └─ 7. websrv.elf          Homebrew 网页启动器（8080）
+   └─ 7. panplay.elf         百度网盘安装器（8734）
 ```
 
 ## 组件关系
@@ -24,9 +24,9 @@ PS5 浏览器打开本页
 | kstuff.elf | 内核补丁：FSELF / FPKG、挂载支持 | 仅需内核漏洞 | [EchoStretch/kstuff-lite](https://github.com/EchoStretch/kstuff-lite) v1.11（FW 1.00 – 13.60） |
 | shadowmountplus.elf | 自动扫描 / 挂载 / 安装游戏镜像（.ffpkg / .exfat / .ffpfs） | kstuff-lite v1.07+ 运行中 | [drakmor/ShadowMountPlus](https://github.com/drakmor/ShadowMountPlus) 1.7beta4（RetroArch 移植版要求 beta4+ 才能访问 USB 盘） |
 | zftpd.elf | FTP 文件服务（端口 2120）+ ZHTTP 网页文件管理（8888） | 仅需 elfldr | [seregonwar/zftpd](https://github.com/seregonwar/zftpd) v1.6.0 |
-| websrv.elf | Homebrew 网页启动器（8080） | 仅需 elfldr | [ps5-payload-dev/websrv](https://github.com/ps5-payload-dev/websrv) v0.34 |
+| panplay.elf | 百度网盘安装器（8734），网页端装游戏 | 仅需 elfldr | [cnwinds/panplay](https://github.com/cnwinds/panplay) v0.1.6 |
 
-加载顺序说明：kstuff 先打内核补丁；ShadowMountPlus 需要 kstuff 处于运行状态，并自带 kstuff 自动暂停/恢复逻辑（游戏启动时暂停 kstuff、退出时恢复）；zftpd / websrv 任何时候按需发送即可。
+加载顺序说明：kstuff 先打内核补丁；ShadowMountPlus 需要 kstuff 处于运行状态，并自带 kstuff 自动暂停/恢复逻辑（游戏启动时暂停 kstuff、退出时恢复）；zftpd / panplay 任何时候按需发送即可。
 
 ## 使用方法
 
@@ -34,8 +34,8 @@ PS5 浏览器打开本页
 
 1. 用 GitHub Pages 或局域网托管本仓库（见下），PS5 浏览器打开 `index.html`。
 2. 页面先探测本机是否已在破解状态（elfldr 9021 仍在线即跳过漏洞利用，直接发 payload）；未破解才自动开始漏洞链。浏览器阶段偶发失败——卡住就刷新重试，内核阶段若死机则重启主机再来。
-3. 日志出现 `elfldr is listening on port 9021` 后，payload 面板自动出现。默认勾选「自动加载」（kstuff → ShadowMountPlus → zftpd → websrv），也可单独发送；页面通过 ROP 直接向 `127.0.0.1:9021` 发送字节流，全程无需 PC 参与。
-4. 主机屏幕弹出 ShadowMount+ 通知、链尾端口验证显示 9021 与 2120 都在监听即成功；电脑浏览器打开 `/ftp.html`（端口 2120）或直连 `http://<PS5 IP>:8888` 即可传文件；websrv 加载后访问 `http://<PS5 IP>:8080` 启动 homebrew。
+3. 日志出现 `elfldr is listening on port 9021` 后，payload 面板自动出现。默认勾选「自动加载」（kstuff → ShadowMountPlus → zftpd → panplay），也可单独发送；页面通过 ROP 直接向 `127.0.0.1:9021` 发送字节流，全程无需 PC 参与。
+4. 主机屏幕弹出 ShadowMount+ 通知、链尾端口验证显示 9021 与 2120 都在监听即成功；电脑浏览器打开 `/ftp.html`（端口 2120）或直连 `http://<PS5 IP>:8888` 即可传文件；panplay 加载后访问 `http://<PS5 IP>:8734`（访问码见主机通知）。
 
 ### 方式二：PC 手动发送
 
@@ -46,7 +46,7 @@ PS5 浏览器打开本页
 nc 192.168.1.100 9021 < kstuff.elf
 nc 192.168.1.100 9021 < shadowmountplus.elf
 nc 192.168.1.100 9021 < zftpd.elf       # 可选：FTP(2120) + ZHTTP(8888)
-nc 192.168.1.100 9021 < websrv.elf      # 可选：Homebrew 网页启动器（8080）
+nc 192.168.1.100 9021 < panplay.elf     # 可选：百度网盘安装器（8734）
 ```
 
 Windows 可用 [etaHEN 仓库](https://github.com/etaHEN/etaHEN) 的 `send_payload.ps1`。
@@ -84,7 +84,7 @@ Windows 可用 [etaHEN 仓库](https://github.com/etaHEN/etaHEN) 的 `send_paylo
 
 - WebKit 阶段可能需要多次尝试，浏览器卡死就刷新页面。
 - 内核阶段可能挂起或 panic 主机，遇到就重启再试。
-- 每次重启后 kstuff / ShadowMountPlus / zftpd / websrv 均需重新加载（重跑本页流程即可）。
+- 每次重启后 kstuff / ShadowMountPlus / zftpd / panplay 均需重新加载（重跑本页流程即可）。
 
 ## 稳定性提示之外的免责声明
 
@@ -95,10 +95,10 @@ Windows 可用 [etaHEN 仓库](https://github.com/etaHEN/etaHEN) 的 `send_paylo
 - **Relapse 漏洞链**：Sonic_Iso（内核漏洞）、Jordy（WebKit 漏洞与内核 bug）、ntfargo、ufm42（漏洞开发）、Dr. Yenyen（测试），以及 TheFlow、SlidyBat、Flatz、cow、nhk、bollarz、Sleirsgoevy、EchoStretch、EarthOnion
 - **kstuff 系列**：sleirsgoevy、zecoxao、flatz、idlesauce、buzzer-re、Al-Azif、EchoStretch、drakmor
 - **zftpd**：Seregon（seregonwar）
-- **websrv**：ps5-payload-dev
+- **panplay**：cnwinds
 - **ShadowMountPlus**：drakmor（ShadowMount 的开源延续）
 - 页面自动发送思路参考社区 all-in-one host（ps5jb 等）
 
 ## License
 
-MIT（见 LICENSE，漏洞链部分版权 Nathan Fargo）。各 payload 遵循其上游项目协议：kstuff-lite（GPL）、ShadowMountPlus（GPL-3.0）、zftpd（见上游 seregonwar/zftpd）、websrv（见上游 ps5-payload-dev/websrv）。
+MIT（见 LICENSE，漏洞链部分版权 Nathan Fargo）。各 payload 遵循其上游项目协议：kstuff-lite（GPL）、ShadowMountPlus（GPL-3.0）、zftpd（见上游 seregonwar/zftpd）、panplay（见上游 cnwinds/panplay）。

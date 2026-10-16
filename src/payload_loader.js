@@ -29,18 +29,18 @@ const PAYLOADS = [
     source: "https://github.com/seregonwar/zftpd",
   },
   {
-    file: "websrv.elf",
-    id: "websrv",
-    title: "websrv（8080）",
-    desc: "Homebrew 网页启动器，监听 8080；加载后用电脑/手机浏览器打开 http://<PS5 IP>:8080 浏览并启动 homebrew。",
-    source: "https://github.com/ps5-payload-dev/websrv",
+    file: "panplay.elf",
+    id: "panplay",
+    title: "panplay（8734）",
+    desc: "百度网盘安装器，监听 8734；加载后用浏览器打开 http://<PS5 IP>:8734（访问码见主机通知）。",
+    source: "https://github.com/cnwinds/panplay",
   },
 ];
 
 // kstuff patches the kernel first, ShadowMountPlus then mounts game images
 // (its kstuff auto-pause logic expects kstuff to be alive); zftpd brings up
-// FTP/ZHTTP, websrv the homebrew launcher.
-const AUTO_CHAIN = ["kstuff.elf", "shadowmountplus.elf", "zftpd.elf", "websrv.elf"];
+// FTP/ZHTTP, panplay the Baidu netdisk installer.
+const AUTO_CHAIN = ["kstuff.elf", "shadowmountplus.elf", "zftpd.elf", "panplay.elf"];
 const AUTO_STEP_DELAY_MS = 4000;
 
 let runtime = null;
@@ -187,7 +187,7 @@ const PORT_INFO = {
   9021: { name: "elfldr（payload 加载器）", hint: "已退出，需重跑一遍破解流程" },
   2120: { name: "FTP（zftpd）", hint: "传文件前先发送「zftpd」卡片" },
   8888: { name: "ZHTTP（zftpd）", hint: "网页文件管理，直连 PS5:8888" },
-  8080: { name: "websrv（homebrew）", hint: "先发送「websrv」卡片" },
+  8734: { name: "panplay（网盘安装）", hint: "先发送「panplay」卡片" },
 };
 
 async function verifyPorts() {
@@ -200,7 +200,7 @@ async function verifyPorts() {
   };
 
   let state = await probe();
-  // zftpd / websrv 刚发的话监听可能晚几秒：没探齐就等 3 秒复查一次再下结论
+  // zftpd / panplay 刚发的话监听可能晚几秒：没探齐就等 3 秒复查一次再下结论
   if (!state || !state.ports["9021"] || !state.ports["2120"]) {
     log("等待 3 秒后复查端口…");
     await sleep(3000);
@@ -224,8 +224,8 @@ async function verifyPorts() {
   } else {
     log("结论：elfldr 已不在监听 —— payload 需要重跑一遍破解流程再发", "error");
   }
-  if (state.ports["8080"])
-    log("websrv 可用 —— 浏览器打开 http://" + state.ip + ":8080 启动 homebrew", "success");
+  if (state.ports["8734"])
+    log("panplay 可用 —— 浏览器打开 http://" + state.ip + ":8734（访问码见主机通知）", "success");
 }
 
 export function initializePayloadSender(p, chain) {
