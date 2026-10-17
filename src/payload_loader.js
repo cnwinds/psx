@@ -37,8 +37,7 @@ const PAYLOADS = [
   },
 ];
 
-// kstuff → SMP → ftpsrv。panplay 开发中易崩，不进自动链，页面底部单独加载调试。
-const AUTO_CHAIN = ["kstuff.elf", "shadowmountplus.elf", "ftpsrv.elf"];
+const AUTO_CHAIN = ["kstuff.elf", "shadowmountplus.elf", "ftpsrv.elf", "panplay.elf"];
 const AUTO_STEP_DELAY_MS = 4000;
 
 let runtime = null;
@@ -255,9 +254,6 @@ export function initializePayloadSender(p, chain) {
 
   const panel = document.getElementById("payload-panel");
   if (panel) panel.classList.remove("hidden");
-
-  const panplayPanel = document.getElementById("panplay-debug");
-  if (panplayPanel) panplayPanel.classList.remove("hidden");
 
   wireSendButtons();
 }

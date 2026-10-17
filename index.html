@@ -64,19 +64,15 @@
     button:disabled { background: #35505c; color: #7c98a4; cursor: default; }
     button.small { font-size: 13px; padding: 8px 14px; }
     button.primary-lg { font-size: 18px; padding: 14px 28px; width: 100%; max-width: 360px; }
-    button.warn-btn { background: #ffb74d; color: #2a1a00; }
-    button.warn-btn:hover { background: #ffcc80; }
     .jb-start-box {
       border: 1px solid #2e5d7a; background: #0a1218; border-radius: 10px;
       padding: 18px; margin-bottom: 14px; text-align: center;
     }
     .jb-start-box .hint { font-size: 13px; color: #9ab; margin-top: 10px; line-height: 1.6; }
-    .panplay-debug {
+    .jb-unsupported {
       border: 1px solid #5d4037; background: #140e0b; border-radius: 10px;
-      padding: 16px 18px; margin-bottom: 18px;
+      padding: 16px 18px; margin-bottom: 14px; color: #ffcc80; font-size: 14px; line-height: 1.6;
     }
-    .panplay-debug .panel-title { color: #ffb74d; }
-    .panplay-debug .row-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 12px; }
 
     .cards { display: flex; gap: 10px; flex-wrap: wrap; }
     .card {
@@ -129,13 +125,17 @@
         <span class="badge">panplay v0.2.2</span>
       </div>
     </div>
-    <div class="subtitle">一站式主机：点「一键破解」再加载 payload；panplay 在页底单独发送，可反复调试。</div>
+    <div class="subtitle">一站式主机：确认可破解固件后点「一键破解」，再一键加载全部 payload。</div>
 
     <div class="steps">
       <div class="step"><b>1 · WebKit</b>用户态读写</div>
       <div class="step"><b>2 · Kernel</b>内核提权 / 沙箱逃逸</div>
       <div class="step"><b>3 · elfldr</b>监听 127.0.0.1:9021</div>
-      <div class="step"><b>4 · Payloads</b>kstuff → SMP → ftpsrv（panplay 单独）</div>
+      <div class="step"><b>4 · Payloads</b>kstuff → SMP → ftpsrv → panplay</div>
+    </div>
+
+    <div id="jb-unsupported" class="jb-unsupported hidden">
+      <div id="jb-unsupported-text">当前环境不支持破解</div>
     </div>
 
     <div id="jb-start" class="jb-start-box hidden">
@@ -143,29 +143,13 @@
       <div class="hint">不会自动开始。点此运行 WebKit → 内核 → elfldr；成功后再加载 payload。</div>
     </div>
 
-    <div id="jb-banner" class="panel hidden">
-      <div style="border:1px solid #2e5d32;background:#0b140e;border-radius:10px;padding:16px 18px;">
-        <div id="jb-banner-title" style="font-size:16px;color:#81c784;margin-bottom:10px;">服务存活检测</div>
-        <div id="jb-ports" style="font-size:13px;line-height:1.9;margin-bottom:10px;font-family:Consolas,Menlo,monospace;"></div>
-        <div style="font-size:13px;color:#9ab;line-height:2;">
-          · 打开页：主机对<strong>打开本页的 PS5</strong>做 TCP 探测（9021/2121/8734）；加载完成后改用 ROP 查 <code>127.0.0.1</code><br>
-          · <b>发送 payload</b>：页面内直发需先跑通漏洞链拿原语，或用电脑 <code>nc &lt;PS5 IP&gt; 9021 &lt; xxx.elf</code><br>
-          · <b>传文件</b>：ftpsrv 存活时可开 <a href="/ftp.html" style="color:#4fc3f7">FTP 文件管理</a>（端口 2121）
-        </div>
-        <div style="margin-top:12px;">
-          <button id="btn-reexploit" class="small">重新走完整破解流程</button>
-          <span style="font-size:12px;color:#666;margin-left:10px;">（要拿页面内 ROP 原语时用）</span>
-        </div>
-      </div>
-    </div>
-
     <div id="console"></div>
 
     <div id="payload-panel" class="panel hidden">
       <div class="panel-title">Payload 发送 <small>（elfldr 已就绪，可直接发送到 9021）</small></div>
       <div class="autochain-box">
-        <button id="btn-autochain">一键加载（不含 panplay）</button>
-        <span style="font-size:13px;color:#9ab;">破解成功后不会自动发插件，请点按钮或各卡片「发送」</span>
+        <button id="btn-autochain">一键加载全部</button>
+        <span style="font-size:13px;color:#9ab;">kstuff → ShadowMountPlus → ftpsrv → panplay；也可点各卡片单独发送</span>
       </div>
       <div class="cards">
         <div class="card" id="card-kstuff" data-state="idle">
@@ -195,6 +179,15 @@
           <div class="src"><a href="https://github.com/ps5-payload-dev/ftpsrv">ps5-payload-dev/ftpsrv</a> · payloads/ftpsrv.elf</div>
           <div class="row" style="margin-top:10px"><button class="small" id="send-ftpsrv">发送</button></div>
         </div>
+        <div class="card" id="card-panplay" data-state="idle">
+          <div class="row">
+            <span class="name">panplay v0.2.2 <small style="color:#777">(8734)</small></span>
+            <span class="status">待发送</span>
+          </div>
+          <div class="desc">百度网盘安装器，监听 8734；加载后用浏览器打开 <code>http://&lt;PS5 IP&gt;:8734</code>（访问码见主机通知）。</div>
+          <div class="src"><a href="https://github.com/cnwinds/pan-play">cnwinds/pan-play</a> · payloads/panplay.elf</div>
+          <div class="row" style="margin-top:10px"><button class="small" id="send-panplay">发送</button></div>
+        </div>
       </div>
     </div>
 
@@ -215,9 +208,8 @@
     <details>
       <summary>使用说明</summary>
       <ol>
-        <li>PS5 浏览器打开本页（固件 7.00 – 13.60），先探测是否已破解；未破解时显示「一键破解」，<b>不会自动开始</b>。浏览器阶段偶发失败可刷新后再点；内核阶段若死机则重启主机再来。</li>
-        <li>破解成功后出现 payload 面板；插件全部手发——可点「一键加载」（kstuff → SMP → ftpsrv，不含 panplay），或各卡片单独发送。</li>
-        <li>页面底部「panplay 单独加载」可反复发送 <code>panplay.elf</code> 到 9021，方便开发调试（不进自动链）。</li>
+        <li>PS5 浏览器打开本页：仅检查是否为可破解固件（7.00–13.60）；符合则显示「一键破解」，否则提示不支持。<b>不会自动开始、也不会探测端口。</b></li>
+        <li>破解成功后出现 payload 面板；点「一键加载全部」（kstuff → SMP → ftpsrv → panplay），或各卡片单独发送。加载结束后会探测本机 127.0.0.1 端口。</li>
         <li>游戏镜像放到 <code>/data/homebrew</code>（默认扫描第一目录；<code>/data/etaHEN/games</code>、<code>/data/shadowmount</code>、USB 根目录也都在扫描范围），ShadowMountPlus 每约 15 秒自动扫描挂载。</li>
         <li>也可以用 PC 手动发送（主机 IP 替换）：Linux/macOS <code>nc 192.168.x.x 9021 &lt; kstuff.elf</code>；Windows 可用社区 send_payload.ps1 脚本。</li>
         <li>重启后一切还原，需要重新走一遍本页流程；稳定性提示与免责声明见仓库 README。</li>
@@ -236,23 +228,6 @@
       </ul>
     </details>
 
-    <div id="panplay-debug" class="panplay-debug hidden">
-      <div class="panel-title">panplay 单独加载 <small>（开发调试：不进自动链，可反复点）</small></div>
-      <div class="card" id="card-panplay" data-state="idle" style="margin:0;border-color:#5d4037;">
-        <div class="row">
-          <span class="name">panplay v0.2.2 <small style="color:#777">(8734)</small></span>
-          <span class="status">待发送</span>
-        </div>
-        <div class="desc">百度网盘安装器。当前版本加载可能崩溃，用下方按钮单独发送到 9021 反复调试；成功后浏览器打开 <code>http://&lt;PS5 IP&gt;:8734</code>（访问码见主机通知）。</div>
-          <div class="src"><a href="https://github.com/cnwinds/pan-play">cnwinds/pan-play</a> · payloads/panplay.elf · v0.2.2</div>
-        <div class="row-actions">
-          <button id="reload-panplay" class="warn-btn">单独加载 panplay</button>
-          <button class="small" id="send-panplay">再发一次</button>
-          <span style="font-size:12px;color:#888;">需本页已跑通破解（有 ROP 原语）</span>
-        </div>
-      </div>
-    </div>
-
     <div class="footer">
       <div>
         Exploit: <a href="https://github.com/ntfargo/Relapse-Exploit">Relapse-Exploit</a>（Sonic_Iso, Jordy, ntfargo, ufm42, Dr. Yenyen 等）·
@@ -269,6 +244,6 @@
   <script src="./src/main.js"></script>
   <script src="./src/rop.js"></script>
   <script src="./src/utils/syscalls.js"></script>
-  <script type="module" src="./src/site.js?v=20261017d"></script>
+  <script type="module" src="./src/site.js?v=20261017e"></script>
 </body>
 </html>
