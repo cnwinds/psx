@@ -24,7 +24,7 @@ PS5 浏览器打开本页
 | kstuff.elf | 内核补丁：FSELF / FPKG、挂载支持 | 仅需内核漏洞 | [EchoStretch/kstuff-lite](https://github.com/EchoStretch/kstuff-lite) v1.11（FW 1.00 – 13.60） |
 | shadowmountplus.elf | 自动扫描 / 挂载 / 安装游戏镜像（.ffpkg / .exfat / .ffpfs） | kstuff-lite v1.07+ 运行中 | [drakmor/ShadowMountPlus](https://github.com/drakmor/ShadowMountPlus) 1.7beta4（RetroArch 移植版要求 beta4+ 才能访问 USB 盘） |
 | ftpsrv.elf | 独立 FTP 服务器（端口 2121），配 ftp.html 网页管理文件 | 仅需 elfldr | [ps5-payload-dev/ftpsrv](https://github.com/ps5-payload-dev/ftpsrv) v0.21.1 |
-| panplay.elf | 百度网盘安装器（8734），网页端装游戏 | 仅需 elfldr | [cnwinds/pan-play](https://github.com/cnwinds/pan-play) v0.2.2 |
+| panplay.elf | 百度网盘安装器（8734），网页端装游戏 | 仅需 elfldr | [cnwinds/pan-play](https://github.com/cnwinds/pan-play) v0.2.3 |
 
 加载顺序说明：kstuff 先打内核补丁；ShadowMountPlus 需要 kstuff 处于运行状态；ftpsrv / panplay 按需手发（页面不自动加载）。
 
