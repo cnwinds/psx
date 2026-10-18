@@ -120,9 +120,8 @@
       <div class="badges">
         <span class="badge ok">FW 7.00 – 13.60</span>
         <span class="badge">kstuff-lite 1.11</span>
-        <span class="badge">ShadowMountPlus 1.7beta4</span>
         <span class="badge">ftpsrv v0.21.1</span>
-        <span class="badge">panplay v0.2.3</span>
+        <span class="badge">panplay v0.9.0</span>
       </div>
     </div>
     <div class="subtitle">一站式主机：确认可破解固件后点「一键破解」，再一键加载全部 payload。</div>
@@ -131,7 +130,7 @@
       <div class="step"><b>1 · WebKit</b>用户态读写</div>
       <div class="step"><b>2 · Kernel</b>内核提权 / 沙箱逃逸</div>
       <div class="step"><b>3 · elfldr</b>监听 127.0.0.1:9021</div>
-      <div class="step"><b>4 · Payloads</b>kstuff → SMP → ftpsrv → panplay</div>
+      <div class="step"><b>4 · Payloads</b>kstuff → ftpsrv → panplay</div>
     </div>
 
     <div id="jb-unsupported" class="jb-unsupported hidden">
@@ -149,7 +148,7 @@
       <div class="panel-title">Payload 发送 <small>（elfldr 已就绪，可直接发送到 9021）</small></div>
       <div class="autochain-box">
         <button id="btn-autochain">一键加载全部</button>
-        <span style="font-size:13px;color:#9ab;">kstuff → ShadowMountPlus → ftpsrv → panplay；也可点各卡片单独发送</span>
+        <span style="font-size:13px;color:#9ab;">kstuff → ftpsrv → panplay；也可点各卡片单独发送</span>
       </div>
       <div class="cards">
         <div class="card" id="card-kstuff" data-state="idle">
@@ -160,15 +159,6 @@
           <div class="desc">内核补丁：FSELF / FPKG 支持，后续所有组件的基础（FW 1.00 – 13.60）。</div>
           <div class="src"><a href="https://github.com/EchoStretch/kstuff-lite">EchoStretch/kstuff-lite</a> · payloads/kstuff.elf</div>
           <div class="row" style="margin-top:10px"><button class="small" id="send-kstuff">发送</button></div>
-        </div>
-        <div class="card" id="card-smp" data-state="idle">
-          <div class="row">
-            <span class="name">ShadowMountPlus 1.7beta4</span>
-            <span class="status">待发送</span>
-          </div>
-          <div class="desc">游戏镜像自动挂载（.ffpkg / .exfat / .ffpfs），自动扫描并安装，需 kstuff 运行中。</div>
-          <div class="src"><a href="https://github.com/drakmor/ShadowMountPlus">drakmor/ShadowMountPlus</a> · payloads/shadowmountplus.elf</div>
-          <div class="row" style="margin-top:10px"><button class="small" id="send-smp">发送</button></div>
         </div>
         <div class="card" id="card-ftpsrv" data-state="idle">
           <div class="row">
@@ -181,7 +171,7 @@
         </div>
         <div class="card" id="card-panplay" data-state="idle">
           <div class="row">
-            <span class="name">panplay v0.2.3 <small style="color:#777">(8734)</small></span>
+            <span class="name">panplay v0.9.0 <small style="color:#777">(8734)</small></span>
             <span class="status">待发送</span>
           </div>
           <div class="desc">百度网盘安装器，监听 8734；加载后用浏览器打开 <code>http://&lt;PS5 IP&gt;:8734</code>（访问码见主机通知）。</div>
@@ -196,9 +186,8 @@
       <div class="downloads">
         <table>
           <tr><td><a href="payloads/kstuff.elf" download>kstuff.elf</a></td><td>kstuff-lite 1.11 · 内核补丁</td><td class="size">1.7 MB</td></tr>
-          <tr><td><a href="payloads/shadowmountplus.elf" download>shadowmountplus.elf</a></td><td>ShadowMountPlus 1.7beta4 · 自动挂载</td><td class="size">2.3 MB</td></tr>
           <tr><td><a href="payloads/ftpsrv.elf" download>ftpsrv.elf</a></td><td>独立 FTP 服务 · 端口 2121</td><td class="size">0.2 MB</td></tr>
-          <tr><td><a href="payloads/panplay.elf" download>panplay.elf</a></td><td>百度网盘安装器 v0.2.3 · 端口 8734</td><td class="size">5.5 MB</td></tr>
+          <tr><td><a href="payloads/panplay.elf" download>panplay.elf</a></td><td>百度网盘安装器 v0.9.0 · 端口 8734</td><td class="size">6.0 MB</td></tr>
           <tr><td><a href="payloads/elfldr-ps5-1360.elf" download>elfldr-ps5-1360.elf</a></td><td>elfldr · ELF 加载器（内核阶段自动使用）</td><td class="size">0.4 MB</td></tr>
           <tr><td><a href="payloads/kexp_2026_05_25.bin" download>kexp_2026_05_25.bin</a></td><td>kexp · 内核 payload 引导（自动使用）</td><td class="size">18 KB</td></tr>
         </table>
@@ -209,8 +198,8 @@
       <summary>使用说明</summary>
       <ol>
         <li>PS5 浏览器打开本页：仅检查是否为可破解固件（7.00–13.60）；符合则显示「一键破解」，否则提示不支持。<b>不会自动开始、也不会探测端口。</b></li>
-        <li>破解成功后出现 payload 面板；点「一键加载全部」（kstuff → SMP → ftpsrv → panplay），或各卡片单独发送。加载结束后会探测本机 127.0.0.1 端口。</li>
-        <li>游戏镜像放到 <code>/data/homebrew</code>（默认扫描第一目录；<code>/data/etaHEN/games</code>、<code>/data/shadowmount</code>、USB 根目录也都在扫描范围），ShadowMountPlus 每约 15 秒自动扫描挂载。</li>
+        <li>破解成功后出现 payload 面板；点「一键加载全部」（kstuff → ftpsrv → panplay），或各卡片单独发送。加载结束后会探测本机 127.0.0.1 端口。</li>
+        <li>传文件、放自制软件可用 <code>/data/homebrew</code> 等目录，通过 <a href="/ftp.html">ftp.html</a>（2121）管理。</li>
         <li>也可以用 PC 手动发送（主机 IP 替换）：Linux/macOS <code>nc 192.168.x.x 9021 &lt; kstuff.elf</code>；Windows 可用社区 send_payload.ps1 脚本。</li>
         <li>重启后一切还原，需要重新走一遍本页流程；稳定性提示与免责声明见仓库 README。</li>
       </ol>
@@ -223,8 +212,7 @@
         <li><b>elfldr</b>：接收 ELF 字节流并加载执行，是后续所有 payload 的入口（本页通过 ROP 直接向 127.0.0.1:9021 发送）。</li>
         <li><b>ftpsrv</b>：独立 FTP 服务器（2121），不依赖任何 HEN 组件，elfldr 在就能发；配 /ftp.html 网页管理文件。</li>
         <li><b>panplay</b>：百度网盘安装器（8734），网页端装游戏；访问码见主机通知。</li>
-        <li><b>kstuff-lite</b>：内核补丁集（FSELF/FPKG、挂载等），ShadowMountPlus 依赖它运行。</li>
-        <li><b>ShadowMountPlus</b>：依赖 kstuff-lite v1.07+，自动扫描/挂载/安装游戏镜像，含 kstuff 自动暂停恢复逻辑。</li>
+        <li><b>kstuff-lite</b>：内核补丁集（FSELF/FPKG、挂载等），后续 payload 的基础。</li>
       </ul>
     </details>
 
@@ -232,7 +220,6 @@
       <div>
         Exploit: <a href="https://github.com/ntfargo/Relapse-Exploit">Relapse-Exploit</a>（Sonic_Iso, Jordy, ntfargo, ufm42, Dr. Yenyen 等）·
         Payloads: <a href="https://github.com/EchoStretch/kstuff-lite">kstuff-lite</a> ·
-        <a href="https://github.com/drakmor/ShadowMountPlus">ShadowMountPlus</a> ·
         <a href="https://github.com/ps5-payload-dev/ftpsrv">ftpsrv</a> ·
         <a href="https://github.com/cnwinds/pan-play">panplay</a>
       </div>
@@ -244,6 +231,6 @@
   <script src="./src/main.js"></script>
   <script src="./src/rop.js"></script>
   <script src="./src/utils/syscalls.js"></script>
-  <script type="module" src="./src/site.js?v=20261017f"></script>
+  <script type="module" src="./src/site.js?v=20261018c"></script>
 </body>
 </html>

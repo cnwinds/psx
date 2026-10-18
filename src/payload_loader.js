@@ -15,13 +15,6 @@ const PAYLOADS = [
     source: "https://github.com/EchoStretch/kstuff-lite",
   },
   {
-    file: "shadowmountplus.elf",
-    id: "smp",
-    title: "ShadowMountPlus 1.7beta4",
-    desc: "游戏镜像自动挂载（需要 kstuff 运行中）",
-    source: "https://github.com/drakmor/ShadowMountPlus",
-  },
-  {
     file: "ftpsrv.elf",
     id: "ftpsrv",
     title: "独立 FTP 服务（2121）",
@@ -31,13 +24,13 @@ const PAYLOADS = [
   {
     file: "panplay.elf",
     id: "panplay",
-    title: "panplay v0.2.3（8734）",
+    title: "panplay v0.9.0（8734）",
     desc: "百度网盘安装器，监听 8734；加载后用浏览器打开 http://<PS5 IP>:8734（访问码见主机通知）。",
     source: "https://github.com/cnwinds/pan-play",
   },
 ];
 
-const AUTO_CHAIN = ["kstuff.elf", "shadowmountplus.elf", "ftpsrv.elf", "panplay.elf"];
+const AUTO_CHAIN = ["kstuff.elf", "ftpsrv.elf", "panplay.elf"];
 const AUTO_STEP_DELAY_MS = 4000;
 
 let runtime = null;

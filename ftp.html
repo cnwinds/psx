@@ -260,11 +260,11 @@ const listUrl = (path, offset) =>
   "&port=" + state.port + "&path=" + encodeURIComponent(path) +
   "&limit=" + PAGE + "&offset=" + (offset || 0);
 
-/* ---------- 快捷路径（ShadowMountPlus 扫描目录等） ---------- */
+/* ---------- 快捷路径 ---------- */
 const QUICK_PATHS = [
-  { label: "🎮 游戏镜像", path: "/data/homebrew", create: true,  tip: "ShadowMountPlus 默认扫描的第一目录（.ffpkg/.exfat，也放自制软件）" },
-  { label: "🎮 旧游戏目录", path: "/data/etaHEN/games", create: true,  tip: "ShadowMountPlus 扫描的第二目录（旧路径，同样有效）" },
-  { label: "📦 ShadowMount", path: "/data/shadowmount", create: true,  tip: "ShadowMountPlus 配置目录（config.ini 在这里）" },
+  { label: "🎮 homebrew", path: "/data/homebrew", create: true,  tip: "常用自制软件与游戏文件目录" },
+  { label: "🎮 游戏目录", path: "/data/etaHEN/games", create: true,  tip: "常见游戏安装路径（旧版 HEN 等）" },
+  { label: "📦 数据目录", path: "/data/shadowmount", create: true,  tip: "可选数据目录（若存在）" },
   { label: "🏠 根目录", path: "/", create: false, tip: "PS5 文件系统根" },
 ];
 
@@ -818,7 +818,7 @@ $("upload-game").onclick = async () => {
   const q = QUICK_PATHS[0];                     // 游戏镜像目录
   await gotoPath(q);
   if (state.path !== q.path) { log("未能进入游戏目录，已取消", "e"); return; }
-  log("选择游戏镜像文件（.ffpkg / .exfat / .ffpfs），上传后 ShadowMountPlus 约 15 秒内自动扫描识别");
+  log("选择要上传的游戏镜像或文件（.ffpkg / .exfat / .ffpfs 等）");
   $("f-files").click();
 };
 $("clear-queue").onclick = () => {
