@@ -22,7 +22,7 @@ PS5 浏览器打开本页
 | elfldr（已含） | 监听 9021，接收并执行 ELF | 由漏洞链自动拉起 | 随 Relapse 仓库 |
 | kstuff.elf | 内核补丁：FSELF / FPKG、挂载支持 | 仅需内核漏洞 | [EchoStretch/kstuff-lite](https://github.com/EchoStretch/kstuff-lite) v1.11（FW 1.00 – 13.60） |
 | ftpsrv.elf | 独立 FTP 服务器（端口 2121），配 ftp.html 网页管理文件 | 仅需 elfldr | [ps5-payload-dev/ftpsrv](https://github.com/ps5-payload-dev/ftpsrv) v0.21.1 |
-| panplay.elf | 百度网盘安装器（8734），网页端装游戏 | 仅需 elfldr | [cnwinds/pan-play](https://github.com/cnwinds/pan-play) v0.9.0 |
+| panplay.elf | 百度网盘安装器（8734），网页端装游戏 | 仅需 elfldr | [cnwinds/pan-play](https://github.com/cnwinds/pan-play) v0.9.1 |
 
 加载顺序说明：kstuff 先打内核补丁；一键加载为 kstuff → ftpsrv → panplay，也可各卡片单独发送。
 
