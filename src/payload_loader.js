@@ -1,40 +1,17 @@
-// All-in-one payload sender: after the kernel exploit leaves elfldr listening
-// on 127.0.0.1:9021, payloads are pushed through a ROP-driven TCP connection
-// so the whole chain runs from this single page.
+// 页面内直发 payload：漏洞链跑通后 elfldr 监听 127.0.0.1:9021，
+// 通过 ROP 驱动的 TCP 连接把 ELF 逐个推过去。发送哪些、按什么顺序，
+// 全部由 elfplan（幕二的勾选与排序）决定。
+
+import { loadPlan, itemById, itemByFile } from "./elfplan.js";
 
 const AF_INET = 2;
 const SOCK_STREAM = 1;
 const ELFLDR_PORT = 9021;
-
-const PAYLOADS = [
-  {
-    file: "kstuff.elf",
-    id: "kstuff",
-    title: "kstuff-lite 1.11",
-    desc: "内核补丁：FSELF / FPKG 支持（FW 1.00 - 13.60）",
-    source: "https://github.com/EchoStretch/kstuff-lite",
-  },
-  {
-    file: "ftpsrv.elf",
-    id: "ftpsrv",
-    title: "独立 FTP 服务（2121）",
-    desc: "独立 FTP 服务器（ps5-payload-sdk ftpsrv），监听 2121；打开 ftp.html（端口 2121）即可管理 PS5 文件。",
-    source: "https://github.com/ps5-payload-dev/ftpsrv",
-  },
-  {
-    file: "panplay.elf",
-    id: "panplay",
-    title: "panplay v0.9.1（8734）",
-    desc: "百度网盘安装器，监听 8734；加载后用浏览器打开 http://<PS5 IP>:8734（访问码见主机通知）。",
-    source: "https://github.com/cnwinds/pan-play",
-  },
-];
-
-const AUTO_CHAIN = ["kstuff.elf", "ftpsrv.elf", "panplay.elf"];
 const AUTO_STEP_DELAY_MS = 4000;
 
 let runtime = null;
 let running = false;
+let chainRunning = false;
 
 function log(message, type = "log") {
   if (typeof window.writeLog === "function") window.writeLog(message, type);
@@ -44,22 +21,18 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function findPayload(file) {
-  const entry = PAYLOADS.find((p) => p.file === file);
-  if (!entry) throw new Error("未知 payload: " + file);
-  return entry;
+function setRow(file, state, bytes) {
+  const item = itemByFile(file);
+  if (item && window.setElfRowState) window.setElfRowState(item.id, state, bytes);
 }
 
-function card(file) {
-  return document.getElementById("card-" + findPayload(file).id);
-}
-
-function setStatus(file, state, text) {
-  const node = card(file);
-  if (!node) return;
-  node.dataset.state = state;
-  const label = node.querySelector(".status");
-  if (label && text) label.textContent = text;
+function enabledChain() {
+  // 幕二当前顺序里的勾选项：[{id, file, name}]
+  const plan = loadPlan();
+  return plan.order
+    .map((id) => itemById(id))
+    .filter((item) => item && !plan.off.has(item.id))
+    .map((item) => ({ id: item.id, file: item.file, name: item.name }));
 }
 
 async function loadIntoMemory(file) {
@@ -127,27 +100,32 @@ async function sendToElfldr(ptr, size) {
   }
 }
 
-export async function sendPayload(file) {
+export async function sendPayload(file, fromChain = false) {
   if (!runtime) throw new Error("漏洞利用尚未完成");
+  if (chainRunning && !fromChain) {
+    log("自动加载正在运行，请等待结束后再手动发送", "info");
+    return false;
+  }
   if (running) {
     log("已有 payload 正在发送，请稍候", "error");
     return false;
   }
 
-  const entry = findPayload(file);
+  const item = itemByFile(file);
+  const title = item ? item.name : file;
   running = true;
-  setStatus(file, "sending", "发送中…");
-  log("发送 " + entry.title + " → 127.0.0.1:" + ELFLDR_PORT, "info");
+  setRow(file, "sending");
+  log("发送 " + title + " → 127.0.0.1:" + ELFLDR_PORT, "info");
 
   try {
     const { ptr, size } = await loadIntoMemory(file);
     await sendToElfldr(ptr, size);
-    setStatus(file, "done", "已发送");
-    log(entry.title + " 发送完成（" + size + " 字节）", "success");
+    setRow(file, "done", size);
+    log(title + " 发送完成（" + size + " 字节）", "success");
     return true;
   } catch (error) {
-    setStatus(file, "failed", "失败");
-    log(entry.title + " 发送失败: " + (error instanceof Error ? error.message : error), "error");
+    setRow(file, "failed");
+    log(title + " 发送失败: " + (error instanceof Error ? error.message : error), "error");
     return false;
   } finally {
     running = false;
@@ -155,98 +133,123 @@ export async function sendPayload(file) {
 }
 
 export async function runAutoChain() {
-  if (!runtime || running) return;
-  const button = document.getElementById("btn-autochain");
+  if (!runtime || running || chainRunning) return;
+  chainRunning = true;
+  const button = document.getElementById("btn-runplan");
   if (button) button.disabled = true;
-
-  log("开始一键加载: " + AUTO_CHAIN.join(" → "), "info");
-  for (let i = 0; i < AUTO_CHAIN.length; i++) {
-    await sendPayload(AUTO_CHAIN[i]);
-    if (i < AUTO_CHAIN.length - 1) {
-      log("等待 " + AUTO_STEP_DELAY_MS / 1000 + " 秒后发送下一个…");
-      await sleep(AUTO_STEP_DELAY_MS);
-    }
-  }
-  log("一键加载流程结束，探测本机 127.0.0.1 端口…");
-  if (button) button.disabled = false;
-  await verifyPorts();
-}
-
-const LOCAL_SERVICES = [
-  { port: 9021, name: "elfldr" },
-  { port: 2121, name: "ftpsrv" },
-  { port: 8734, name: "panplay" },
-];
-
-async function probeLocalPort(port) {
-  // 在 PS5 本机用 ROP connect 127.0.0.1:port，不经过主机、也不需要局域网 IP
-  const p = runtime.p;
-  const chain = runtime.chain;
-  const addr = p.malloc(0x10, 1);
-  for (let i = 0; i < 0x10; i++) p.write1(addr.add32(i), 0);
-  p.write1(addr.add32(0x0), 0x10);
-  p.write1(addr.add32(0x1), AF_INET);
-  p.write2(addr.add32(0x2), ((port & 0xff) << 8) | ((port >> 8) & 0xff));
-  p.write4(addr.add32(0x4), (127) | (0 << 8) | (0 << 16) | (1 << 24));
-
-  const fd = ((await chain.syscall(SYS_SOCKET, AF_INET, SOCK_STREAM, 0)).low | 0);
-  if (fd < 0) return false;
   try {
-    const connected = (await chain.syscall(SYS_CONNECT, fd, addr, 0x10)).low | 0;
-    return connected === 0;
+    const wanted = enabledChain();
+    if (!wanted.length) {
+      log("没有勾选任何 ELF，先在幕二勾选", "error");
+      return;
+    }
+
+    // 先探测一轮端口，跳过已加载的 ELF（zftpd 监听 2120/8888 即视为已加载；
+    // kstuff / ShadowMountPlus 无端口可探，照常发送）
+    let loaded = {};
+    try {
+      const state = await (await fetch("/api/jbstate", { cache: "no-store" })).json();
+      if (state && state.ports)
+        loaded = {
+          zftpd: !!(state.ports["2120"] || state.ports["8888"]),
+          websrv: !!state.ports["8080"],
+        };
+    } catch (error) { /* 探测失败就全部照发 */ }
+    const chain = wanted.filter((it) => !loaded[it.id]);
+    const skipped = wanted.filter((it) => loaded[it.id]);
+    for (const it of skipped) {
+      if (window.setElfRowState) window.setElfRowState(it.id, "loaded");
+      log(it.name + " 已在本机运行（端口监听中），跳过不重发", "info");
+    }
+    if (!chain.length) {
+      log("勾选的 ELF 都已加载过，本次无需发送", "success");
+      const finalState = await verifyPorts();
+      if (typeof window.onFlowComplete === "function") window.onFlowComplete(finalState);
+      return;
+    }
+
+    log("按顺序加载: " + chain.map((it) => it.file).join(" → "), "info");
+    for (let i = 0; i < chain.length; i++) {
+      if (!await sendPayload(chain[i].file, true)) {
+        log(chain[i].name + " 加载失败，已停止后续 ELF；检查后重试", "error");
+        return;                 // 后续项可能依赖当前 ELF，不能继续发
+      }
+      if (i < chain.length - 1) {
+        log("等待 " + AUTO_STEP_DELAY_MS / 1000 + " 秒后发送下一个…");
+        await sleep(AUTO_STEP_DELAY_MS);
+      }
+    }
+    log("顺序加载结束，向主机确认端口状态…");
+    const finalState = await verifyPorts();
+    if (typeof window.onFlowComplete === "function") window.onFlowComplete(finalState);
   } finally {
-    await chain.syscall(SYS_CLOSE, fd);
+    chainRunning = false;
+    if (button) button.disabled = false;
   }
 }
+
+// 让主机端探测发起请求的设备（就是本机 PS5）的端口，逐个报告监听状态。
+const PORT_INFO = {
+  9021: { name: "elfldr（payload 通道）", hint: "已退出，需重启后重跑破解流程" },
+  2120: { name: "zftpd FTP（传文件）", hint: "在幕二勾选 zftpd 发送" },
+  8888: { name: "zftpd ZHTTP（网页文件管理）", hint: "随 zftpd 一起起来" },
+  8080: { name: "websrv（网页发送器）", hint: "在幕二勾选 websrv 发送" },
+};
 
 async function verifyPorts() {
-  if (!runtime) {
-    log("无 ROP 原语，跳过本机端口探测", "error");
-    return;
-  }
-
-  await sleep(3000); // 刚发完 ELF，监听可能晚几秒
-
-  log("—— 服务存活检测（127.0.0.1）——", "info");
-  for (const svc of LOCAL_SERVICES) {
-    let alive = await probeLocalPort(svc.port);
-    if (!alive) {
-      await sleep(1500);
-      alive = await probeLocalPort(svc.port);
+  const probe = async () => {
+    try {
+      return await (await fetch("/api/jbstate", { cache: "no-store" })).json();
+    } catch (error) {
+      return null;
     }
-    log(
-      (alive ? "✓ " : "✗ ") + "127.0.0.1:" + svc.port + "  " + svc.name + (alive ? "  存活" : "  未存活"),
-      alive ? "success" : "error",
-    );
-  }
-}
+  };
 
-function wireSendButtons() {
-  for (const entry of PAYLOADS) {
-    for (const id of ["send-" + entry.id, "reload-" + entry.id]) {
-      const button = document.getElementById(id);
-      if (!button || button.dataset.wired === "1") continue;
-      button.dataset.wired = "1";
-      button.addEventListener("click", () => {
-        sendPayload(entry.file);
-      });
-    }
+  let state = await probe();
+  // zftpd 刚发的话监听可能晚几秒：没探齐就等 3 秒复查一次再下结论
+  if (!state || !state.ports || !state.ports["9021"] || !state.ports["2120"]) {
+    log("等待 3 秒后复查端口…");
+    await sleep(3000);
+    state = await probe();
+  }
+  if (!state || !state.ports) {
+    log("无法向主机确认状态（探测接口无响应），请手动验证端口", "error");
+    return null;
   }
 
-  const auto = document.getElementById("btn-autochain");
-  if (auto && auto.dataset.wired !== "1") {
-    auto.dataset.wired = "1";
-    auto.addEventListener("click", () => {
-      runAutoChain();
-    });
+  log("—— 端口验证（" + state.ip + "）——", "info");
+  if (window.applyElfState) window.applyElfState(state.ports, state);   // 行胶囊同步「已加载」并更新二维码
+  for (const portKey of Object.keys(PORT_INFO)) {
+    const info = PORT_INFO[portKey];
+    const up = !!state.ports[portKey];
+    log((up ? "✓ " : "✗ ") + portKey + "  " + info.name + (up ? "  在监听" : "  未监听（" + info.hint + "）"),
+      up ? "success" : "error");
   }
+  if (state.ports["8888"] || state.ports["2120"]) {
+    log("结论：文件服务可用 —— 手机或电脑浏览器打开 ZHTTP 网页文件管理 http://" + state.ip + ":8888（FTP 客户端可连 :2120）", "success");
+  } else if (state.ports["9021"]) {
+    log("结论：elfldr 在线但 zftpd 未监听 —— 要传文件就勾选 zftpd 再发一次", "success");
+  } else {
+    log("结论：elfldr 已不在监听 —— 需重启后重跑破解流程", "error");
+  }
+  return state;
 }
 
 export function initializePayloadSender(p, chain) {
   runtime = { p, chain };
 
-  const panel = document.getElementById("payload-panel");
-  if (panel) panel.classList.remove("hidden");
+  document.querySelectorAll("#elf-rows [data-file]").forEach((button) => {
+    button.addEventListener("click", () => {
+      sendPayload(button.dataset.file);
+    });
+  });
 
-  wireSendButtons();
+  const run = document.getElementById("btn-runplan");
+  if (run)
+    run.addEventListener("click", () => {
+      runAutoChain();
+    });
+
+  const autorun = document.getElementById("autorun-opt");
+  if (autorun && autorun.checked) runAutoChain();
 }

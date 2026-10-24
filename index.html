@@ -1,236 +1,269 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="utf-8">
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>PS5 Relapse · All-in-One</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body {
-      background: #060606;
-      color: #e8e8e8;
-      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-      min-height: 100%;
-    }
-    body { padding: 24px 16px 40px; }
-    .wrap { max-width: 960px; margin: 0 auto; }
-
-    .header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 6px; }
-    h1 { font-size: 26px; letter-spacing: 0.5px; }
-    h1 .accent { color: #4fc3f7; }
-    .badges { display: flex; gap: 8px; flex-wrap: wrap; }
-    .badge {
-      font-size: 12px; padding: 4px 10px; border-radius: 999px;
-      border: 1px solid #333; background: #111; color: #aaa;
-    }
-    .badge.ok { border-color: #2e5d32; color: #81c784; }
-    .subtitle { color: #888; font-size: 13px; margin-bottom: 18px; }
-
-    .steps { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
-    .step {
-      flex: 1; min-width: 150px; text-align: center; font-size: 12px;
-      padding: 8px 6px; border: 1px solid #222; border-radius: 8px;
-      background: #0c0c0c; color: #777;
-    }
-    .step b { display: block; font-size: 13px; color: #bbb; margin-bottom: 2px; }
-
-    #console {
-      background: #000; border: 1px solid #1e1e1e; border-radius: 10px;
-      font-family: Consolas, Menlo, monospace; font-size: 13px; line-height: 1.55;
-      padding: 12px 14px; height: 300px; overflow-y: auto; margin-bottom: 18px;
-      white-space: pre-wrap; word-break: break-all;
-    }
-    #console > div { color: #9e9e9e; }
-    #console > div:last-child { color: #e0e0e0; }
-
-    .panel { margin-bottom: 18px; }
-    .hidden { display: none; }
-    .panel-title { font-size: 15px; color: #4fc3f7; margin-bottom: 10px; }
-    .panel-title small { color: #777; font-weight: normal; }
-
-    .autochain-box {
-      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-      border: 1px solid #2e3b44; background: #0b1014; border-radius: 10px;
-      padding: 14px; margin-bottom: 12px;
-    }
-    .autochain-box label { font-size: 13px; color: #9ab; display: flex; align-items: center; gap: 6px; }
-    button {
-      font-family: inherit; cursor: pointer; border: 0; border-radius: 8px;
-      font-size: 15px; padding: 10px 18px; color: #061014;
-      background: #4fc3f7;
-    }
-    button:hover { background: #81d4fa; }
-    button:disabled { background: #35505c; color: #7c98a4; cursor: default; }
-    button.small { font-size: 13px; padding: 8px 14px; }
-    button.primary-lg { font-size: 18px; padding: 14px 28px; width: 100%; max-width: 360px; }
-    .jb-start-box {
-      border: 1px solid #2e5d7a; background: #0a1218; border-radius: 10px;
-      padding: 18px; margin-bottom: 14px; text-align: center;
-    }
-    .jb-start-box .hint { font-size: 13px; color: #9ab; margin-top: 10px; line-height: 1.6; }
-    .jb-unsupported {
-      border: 1px solid #5d4037; background: #140e0b; border-radius: 10px;
-      padding: 16px 18px; margin-bottom: 14px; color: #ffcc80; font-size: 14px; line-height: 1.6;
-    }
-
-    .cards { display: flex; gap: 10px; flex-wrap: wrap; }
-    .card {
-      flex: 1; min-width: 250px; border: 1px solid #222; border-radius: 10px;
-      background: #0c0c0c; padding: 12px 14px; margin-bottom: 10px;
-    }
-    .card .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
-    .card .name { font-size: 15px; color: #eee; }
-    .card .status { font-size: 12px; color: #888; }
-    .card[data-state="sending"] .status { color: #ffd54f; }
-    .card[data-state="done"] .status { color: #81c784; }
-    .card[data-state="failed"] .status { color: #e57373; }
-    .card .desc { font-size: 12px; color: #888; line-height: 1.5; }
-    .card .src { font-size: 11px; color: #556; margin-top: 6px; }
-    .card .src a { color: #4fc3f7; text-decoration: none; }
-
-    .downloads { border: 1px solid #1e1e1e; border-radius: 10px; background: #0a0a0a; padding: 12px 14px; }
-    .downloads table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    .downloads td { padding: 6px 4px; border-bottom: 1px solid #161616; color: #999; }
-    .downloads tr:last-child td { border-bottom: 0; }
-    .downloads a { color: #4fc3f7; text-decoration: none; }
-    .downloads a:hover { text-decoration: underline; }
-    .downloads .size { color: #555; white-space: nowrap; }
-
-    details {
-      border: 1px solid #1e1e1e; border-radius: 10px; background: #0a0a0a;
-      padding: 12px 14px; margin-bottom: 18px; color: #aaa; font-size: 13px; line-height: 1.7;
-    }
-    summary { cursor: pointer; color: #ddd; font-size: 14px; margin-bottom: 8px; }
-    details ol, details ul { padding-left: 20px; }
-    details code, #jb-banner code {
-      background: #161616; border-radius: 4px; padding: 1px 5px;
-      font-family: Consolas, Menlo, monospace; font-size: 12px; color: #ce93d8;
-    }
-
-    .footer { border-top: 1px solid #1a1a1a; padding-top: 14px; font-size: 12px; color: #666; line-height: 1.7; }
-    .footer a { color: #4fc3f7; text-decoration: none; }
-    .warn { color: #a1887f; }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>THE MATRIX // PS5 矩阵控制台</title>
+<link rel="stylesheet" href="./ui.css">
 </head>
-<body>
-  <div class="wrap">
-    <div class="header">
-      <h1>PS5 Relapse <span class="accent">All-in-One</span></h1>
-      <div class="badges">
-        <span class="badge ok">FW 7.00 – 13.60</span>
-        <span class="badge">kstuff-lite 1.11</span>
-        <span class="badge">ftpsrv v0.21.1</span>
-        <span class="badge">panplay v0.9.1</span>
+<body class="page-home">
+<canvas class="matrix-rain" aria-hidden="true"></canvas>
+
+<div class="wrap">
+
+<a class="skip-link" href="#workspace">跳到工作区</a>
+
+<header class="site-header">
+  <div class="brand-block">
+    <span class="brand-mark" aria-hidden="true">ᛗ</span>
+    <span class="brand-copy">
+      <b class="brand">RELAPSE // MATRIX</b>
+      <span class="brand-note">NEBUCHADNEZZAR OPS-DECK · FW 7.00–13.60</span>
+    </span>
+  </div>
+  <div class="matrix-hud-meta" aria-hidden="true">
+    <span>SYS.KERNEL <b>RELAPSE_UAF</b></span>
+    <span>HARDLINE <b>:9021 / :8888</b></span>
+  </div>
+  <nav class="site-nav" aria-label="主导航">
+    <a href="./index.html" aria-current="page">[01] 矩阵控制台</a>
+    <a href="./ftp.html" id="nav-files-link">[02] 文件传输</a>
+  </nav>
+</header>
+
+<section id="hero-intro" hidden></section>
+
+<!-- 顶部四格实时遥测栏 -->
+<section class="statebar" aria-label="主机状态">
+  <div>
+    <span class="state-label">0x00 // 终端节点</span>
+    <b id="st-device">检测中…</b>
+  </div>
+  <div>
+    <span class="state-label">0x01 // 矩阵状态</span>
+    <b id="st-jb">检测中…</b>
+  </div>
+  <div>
+    <span class="state-label">0x02 // ELFLDR (:9021)</span>
+    <b id="st-ldr">—</b>
+  </div>
+  <div>
+    <span class="state-label">0x03 // 节点 IP</span>
+    <b id="st-ip">待识别</b>
+  </div>
+</section>
+
+<main id="workspace" class="workspace home-workspace" tabindex="-1">
+
+  <!-- 全部流程完成后的置顶汇总条 -->
+  <section id="flow-complete-banner" class="flow-banner" hidden aria-live="polite">
+    <div class="flow-banner-main">
+      <i class="pulse-dot" aria-hidden="true"></i>
+      <h2 id="flow-banner-title">服务已就绪，请用手机扫码访问</h2>
+      <span id="flow-banner-desc" class="flow-banner-sub">同一 Wi-Fi 扫码直连</span>
+    </div>
+    <div class="flow-banner-actions">
+      <button type="button" id="btn-toggle-fold" class="ghost mini">展开详情 ▾</button>
+    </div>
+  </section>
+
+  <!-- 01：主机提权 -->
+  <section class="act" id="act-exploit" aria-labelledby="head-exploit">
+    <header class="act-head act-head-collapsible">
+      <span class="act-num">01</span>
+      <h2 id="head-exploit">主机提权 // BREACH</h2>
+      <span class="sub" id="exploit-fold-summary">WebKit → 内核 → :9021</span>
+      <button type="button" id="btn-fold-exploit" class="ghost mini act-fold-btn" aria-expanded="true">收起 ▴</button>
+    </header>
+
+    <div class="act-body" id="body-exploit">
+      <div id="exploit-status" class="status-card" data-state="checking">
+        <div class="badge"><span class="dot"></span><span id="status-badge">检测中</span></div>
+        <h3 id="status-title">正在扫描主机矩阵端口…</h3>
+        <p id="status-body">探测 9021 / 2120 / 8888 / 8080 端口…</p>
+        <div id="status-actions" class="actions" hidden></div>
       </div>
-    </div>
-    <div class="subtitle">一站式主机：确认可破解固件后点「一键破解」，再一键加载全部 payload。</div>
 
-    <div class="steps">
-      <div class="step"><b>1 · WebKit</b>用户态读写</div>
-      <div class="step"><b>2 · Kernel</b>内核提权 / 沙箱逃逸</div>
-      <div class="step"><b>3 · elfldr</b>监听 127.0.0.1:9021</div>
-      <div class="step"><b>4 · Payloads</b>kstuff → ftpsrv → panplay</div>
-    </div>
-
-    <div id="jb-unsupported" class="jb-unsupported hidden">
-      <div id="jb-unsupported-text">当前环境不支持破解</div>
-    </div>
-
-    <div id="jb-start" class="jb-start-box hidden">
-      <button id="btn-jailbreak" class="primary-lg">一键破解</button>
-      <div class="hint">不会自动开始。点此运行 WebKit → 内核 → elfldr；成功后再加载 payload。</div>
-    </div>
-
-    <div id="console"></div>
-
-    <div id="payload-panel" class="panel hidden">
-      <div class="panel-title">Payload 发送 <small>（elfldr 已就绪，可直接发送到 9021）</small></div>
-      <div class="autochain-box">
-        <button id="btn-autochain">一键加载全部</button>
-        <span style="font-size:13px;color:#9ab;">kstuff → ftpsrv → panplay；也可点各卡片单独发送</span>
-      </div>
-      <div class="cards">
-        <div class="card" id="card-kstuff" data-state="idle">
-          <div class="row">
-            <span class="name">kstuff-lite 1.11</span>
-            <span class="status">待发送</span>
-          </div>
-          <div class="desc">内核补丁：FSELF / FPKG 支持，后续所有组件的基础（FW 1.00 – 13.60）。</div>
-          <div class="src"><a href="https://github.com/EchoStretch/kstuff-lite">EchoStretch/kstuff-lite</a> · payloads/kstuff.elf</div>
-          <div class="row" style="margin-top:10px"><button class="small" id="send-kstuff">发送</button></div>
-        </div>
-        <div class="card" id="card-ftpsrv" data-state="idle">
-          <div class="row">
-            <span class="name">独立 FTP 服务 <small style="color:#777">(2121)</small></span>
-            <span class="status">待发送</span>
-          </div>
-          <div class="desc">独立 FTP 服务器（ps5-payload-sdk ftpsrv），监听 2121；之后打开 <a href="/ftp.html" style="color:#4fc3f7">ftp.html</a>（端口 2121）即可管理 PS5 文件。</div>
-          <div class="src"><a href="https://github.com/ps5-payload-dev/ftpsrv">ps5-payload-dev/ftpsrv</a> · payloads/ftpsrv.elf</div>
-          <div class="row" style="margin-top:10px"><button class="small" id="send-ftpsrv">发送</button></div>
-        </div>
-        <div class="card" id="card-panplay" data-state="idle">
-          <div class="row">
-            <span class="name">panplay v0.9.1 <small style="color:#777">(8734)</small></span>
-            <span class="status">待发送</span>
-          </div>
-          <div class="desc">百度网盘安装器，监听 8734；加载后用浏览器打开 <code>http://&lt;PS5 IP&gt;:8734</code>（访问码见主机通知）。</div>
-          <div class="src"><a href="https://github.com/cnwinds/pan-play">cnwinds/pan-play</a> · payloads/panplay.elf</div>
-          <div class="row" style="margin-top:10px"><button class="small" id="send-panplay">发送</button></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="panel">
-      <div class="panel-title">文件下载 <small>（全部内容一站提供，可在 PC 端下载后手动发送）</small></div>
-      <div class="downloads">
-        <table>
-          <tr><td><a href="payloads/kstuff.elf" download>kstuff.elf</a></td><td>kstuff-lite 1.11 · 内核补丁</td><td class="size">1.7 MB</td></tr>
-          <tr><td><a href="payloads/ftpsrv.elf" download>ftpsrv.elf</a></td><td>独立 FTP 服务 · 端口 2121</td><td class="size">0.2 MB</td></tr>
-          <tr><td><a href="payloads/panplay.elf" download>panplay.elf</a></td><td>百度网盘安装器 v0.9.1 · 端口 8734</td><td class="size">6.0 MB</td></tr>
-          <tr><td><a href="payloads/elfldr-ps5-1360.elf" download>elfldr-ps5-1360.elf</a></td><td>elfldr · ELF 加载器（内核阶段自动使用）</td><td class="size">0.4 MB</td></tr>
-          <tr><td><a href="payloads/kexp_2026_05_25.bin" download>kexp_2026_05_25.bin</a></td><td>kexp · 内核 payload 引导（自动使用）</td><td class="size">18 KB</td></tr>
-        </table>
-      </div>
-    </div>
-
-    <details>
-      <summary>使用说明</summary>
-      <ol>
-        <li>PS5 浏览器打开本页：仅检查是否为可破解固件（7.00–13.60）；符合则显示「一键破解」，否则提示不支持。<b>不会自动开始、也不会探测端口。</b></li>
-        <li>破解成功后出现 payload 面板；点「一键加载全部」（kstuff → ftpsrv → panplay），或各卡片单独发送。加载结束后会探测本机 127.0.0.1 端口。</li>
-        <li>传文件、放自制软件可用 <code>/data/homebrew</code> 等目录，通过 <a href="/ftp.html">ftp.html</a>（2121）管理。</li>
-        <li>也可以用 PC 手动发送（主机 IP 替换）：Linux/macOS <code>nc 192.168.x.x 9021 &lt; kstuff.elf</code>；Windows 可用社区 send_payload.ps1 脚本。</li>
-        <li>重启后一切还原，需要重新走一遍本页流程；稳定性提示与免责声明见仓库 README。</li>
+      <ol id="rail" class="rail" hidden aria-label="提权进度">
+        <li id="stage-webkit">
+          <span class="stage-num">01 · WEBKIT</span>
+          <b>读写原语 &amp; ROP</b>
+        </li>
+        <li id="stage-kernel">
+          <span class="stage-num">02 · KERNEL</span>
+          <b>内核提权</b>
+        </li>
+        <li id="stage-elfldr">
+          <span class="stage-num">03 · ELFLDR</span>
+          <b>监听 :9021</b>
+        </li>
       </ol>
-    </details>
 
-    <details>
-      <summary>组件关系</summary>
-      <ul>
-        <li><b>Relapse 漏洞链</b>（WebKit 用户态 → aio_multi_wait 内核 UAF → 提权）：跑通后由 kexp 在内核上下文拉起 <b>elfldr</b> 并监听 9021。</li>
-        <li><b>elfldr</b>：接收 ELF 字节流并加载执行，是后续所有 payload 的入口（本页通过 ROP 直接向 127.0.0.1:9021 发送）。</li>
-        <li><b>ftpsrv</b>：独立 FTP 服务器（2121），不依赖任何 HEN 组件，elfldr 在就能发；配 /ftp.html 网页管理文件。</li>
-        <li><b>panplay</b>：百度网盘安装器（8734），网页端装游戏；访问码见主机通知。</li>
-        <li><b>kstuff-lite</b>：内核补丁集（FSELF/FPKG、挂载等），后续 payload 的基础。</li>
-      </ul>
-    </details>
+      <details id="exploit-log" class="log-box">
+        <summary>TTY0 // 内核运行日志</summary>
+        <div id="console" role="log" aria-live="off"></div>
+      </details>
+    </div>
+  </section>
 
-    <div class="footer">
-      <div>
-        Exploit: <a href="https://github.com/ntfargo/Relapse-Exploit">Relapse-Exploit</a>（Sonic_Iso, Jordy, ntfargo, ufm42, Dr. Yenyen 等）·
-        Payloads: <a href="https://github.com/EchoStretch/kstuff-lite">kstuff-lite</a> ·
-        <a href="https://github.com/ps5-payload-dev/ftpsrv">ftpsrv</a> ·
-        <a href="https://github.com/cnwinds/pan-play">panplay</a>
+  <!-- 02：ELF 组件加载 -->
+  <section class="act" id="act-payloads" aria-labelledby="head-payloads">
+    <header class="act-head act-head-collapsible">
+      <span class="act-num">02</span>
+      <h2 id="head-payloads">组件加载 // CONSTRUCT</h2>
+      <span class="sub" id="payloads-fold-summary">按序注入</span>
+      <span id="plan-mode" class="mode-tag">待机</span>
+      <button type="button" id="btn-fold-payloads" class="ghost mini act-fold-btn" aria-expanded="true">收起 ▴</button>
+    </header>
+
+    <div class="act-body" id="body-payloads">
+      <ol id="elf-rows" class="elf-list"></ol>
+
+      <div class="plan-bar">
+        <button type="button" id="btn-runplan" class="primary" disabled>一键加载</button>
+        <button type="button" id="btn-resetplan" class="ghost mini">重置</button>
+        <label class="Check">
+          <input type="checkbox" id="autorun-opt" checked>
+          <span>自动加载</span>
+        </label>
       </div>
-      <div class="warn">仅供教育与研究用途，仅限在自有设备上使用；可能导致系统不稳定、数据丢失或账号封禁，风险自负。不支持盗版。</div>
+
+      <details id="pcsend" class="log-box pcsend-details" hidden>
+        <summary>CLI // 命令行推送 (:9021) &amp; 离线载荷</summary>
+        <div class="pcsend">
+          <div class="pcsend-row">
+            <span>Linux / macOS</span>
+            <code id="pcsend-cmd"></code>
+          </div>
+          <div class="pcsend-row">
+            <span>PowerShell</span>
+            <code id="pcsend-ps"></code>
+          </div>
+          <div class="dl-links">
+            <a href="payloads/kstuff.elf" download>kstuff.elf</a>
+            <a href="payloads/shadowmountplus.elf" download>shadowmountplus.elf</a>
+            <a href="payloads/zftpd.elf" download>zftpd.elf</a>
+            <a href="payloads/websrv.elf" download>websrv.elf</a>
+            <a href="payloads/elfldr-ps5-1360.elf" download>elfldr.elf</a>
+          </div>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <!-- 03：手机扫码服务 -->
+  <section class="act tools-section" id="act-services" aria-labelledby="head-services">
+    <header class="act-head">
+      <span class="act-num" id="services-num">03</span>
+      <h2 id="head-services">扫码服务 // HARDLINE UPLINK</h2>
+      <span class="sub">手机与 PS5 连接同一 Wi-Fi 即可扫码直连</span>
+    </header>
+
+    <!-- 独立工具栏：PS5 IP 与候选设备切换 -->
+    <div class="qr-toolbar">
+      <div class="qr-toolbar-top">
+        <div class="qr-ip-group">
+          <label for="qr-ps5-ip" class="qr-ip-label">TARGET_IP // PS5</label>
+          <input type="text" id="qr-ps5-ip" class="qr-ip-input" value="192.168.1.100" placeholder="192.168.1.100" spellcheck="false" autocomplete="off">
+          <span id="qr-ip-hint" class="qr-ip-hint"></span>
+        </div>
+        <div class="qr-toolbar-actions">
+          <button type="button" id="btn-scan-lan" class="ghost mini">扫描局域网</button>
+          <button type="button" id="btn-probe-ports" class="ghost mini">刷新端口</button>
+          <button type="button" id="btn-fold-manual" class="ghost mini">折叠流程</button>
+        </div>
+      </div>
+
+      <!-- 候选 IP 选择栏 -->
+      <div id="qr-candidates-panel" class="qr-candidates-panel" hidden>
+        <div class="qr-chip-row" id="qr-ps5-candidates-row" hidden>
+          <span class="qr-chip-label">候选 PS5</span>
+          <div class="qr-chip-list" id="qr-ps5-chips" role="radiogroup" aria-label="PS5 候选 IP"></div>
+        </div>
+        <div class="qr-chip-row" id="qr-host-candidates-row" hidden>
+          <span class="qr-chip-label">本机网卡</span>
+          <div class="qr-chip-list" id="qr-host-chips" role="radiogroup" aria-label="宿主机网卡 IP"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 核心服务二维码卡片 -->
+    <div class="tools qr-cards">
+
+      <!-- 服务 1：websrv (:8080) -->
+      <article class="tool-box qr-card" id="service-websrv" data-service="websrv">
+        <div class="qr-card-top">
+          <h3>websrv 网页发送器</h3>
+          <span class="service-badge" id="badge-websrv" data-up="wait">待检测 :8080</span>
+        </div>
+
+        <div class="qr-box" data-zoom-qr="websrv" title="点击放大二维码">
+          <div class="qr-canvas" id="qr-websrv" aria-label="websrv 二维码"></div>
+          <span class="qr-caption">手机扫码向 PS5 追发 payload</span>
+        </div>
+
+        <div class="qr-url-bar">
+          <code class="qr-url-code" id="url-websrv">http://192.168.1.100:8080</code>
+        </div>
+
+        <div class="qr-card-actions">
+          <a id="link-websrv" class="btn-link primary-link" href="http://192.168.1.100:8080" target="_blank" rel="noreferrer">打开 :8080 ↗</a>
+          <button type="button" class="ghost mini" data-copy-target="url-websrv">复制</button>
+          <button type="button" class="ghost mini" data-zoom-qr="websrv">放大</button>
+        </div>
+      </article>
+
+      <!-- 服务 2：ZHTTP (:8888) -->
+      <article class="tool-box qr-card" id="service-zhttp" data-service="zhttp">
+        <div class="qr-card-top">
+          <h3>ZHTTP 网页文件管理</h3>
+          <span class="service-badge" id="badge-zhttp" data-up="wait">待检测 :8888</span>
+        </div>
+
+        <div class="qr-box" data-zoom-qr="zhttp" title="点击放大二维码">
+          <div class="qr-canvas" id="qr-zhttp" aria-label="ZHTTP 二维码"></div>
+          <span class="qr-caption">PS5 本机直连 · 免密访问</span>
+        </div>
+
+        <div class="qr-url-bar">
+          <code class="qr-url-code" id="url-zhttp">http://192.168.1.100:8888</code>
+        </div>
+
+        <div class="qr-card-actions">
+          <a id="link-zhttp" class="btn-link primary-link" href="http://192.168.1.100:8888" target="_blank" rel="noreferrer">打开 :8888 ↗</a>
+          <button type="button" class="ghost mini" data-copy-target="url-zhttp">复制</button>
+          <button type="button" class="ghost mini" data-zoom-qr="zhttp">放大</button>
+        </div>
+      </article>
+    </div>
+  </section>
+
+</main>
+
+<!-- 二维码全屏放大弹窗 -->
+<div id="qr-modal" class="qr-modal" hidden role="dialog" aria-modal="true" aria-labelledby="qr-modal-title">
+  <div class="qr-modal-backdrop" data-close-modal="1"></div>
+  <div class="qr-modal-dialog">
+    <header class="qr-modal-head">
+      <h3 id="qr-modal-title">服务二维码</h3>
+      <button type="button" id="qr-modal-close" class="ghost mini" data-close-modal="1">✕</button>
+    </header>
+    <div class="qr-modal-svg" id="qr-modal-svg"></div>
+    <code class="qr-modal-url" id="qr-modal-url"></code>
+    <p class="qr-modal-desc" id="qr-modal-desc"></p>
+    <div class="qr-modal-foot">
+      <a id="qr-modal-open" class="btn-link primary-link" href="#" target="_blank" rel="noreferrer">直接打开 ↗</a>
+      <button type="button" class="ghost" data-close-modal="1">关闭</button>
     </div>
   </div>
+</div>
 
-  <script src="./src/firmware.js"></script>
-  <script src="./src/main.js"></script>
-  <script src="./src/rop.js"></script>
-  <script src="./src/utils/syscalls.js"></script>
-  <script type="module" src="./src/site.js?v=20261019a"></script>
+</div>
+<script src="./src/firmware.js"></script>
+<script src="./src/main.js"></script>
+<script src="./src/rop.js"></script>
+<script src="./src/utils/syscalls.js"></script>
+<script type="module" src="./src/site.js"></script>
 </body>
 </html>

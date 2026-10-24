@@ -1,0 +1,1710 @@
+/* ==========================================================================
+   THE MATRIX // NEBUCHADNEZZAR OPERATOR CONSOLE & CONSTRUCT WORKBENCH
+   Zero external requests. Pure CRT Phosphor & Cybernetic HUD Architecture.
+   ========================================================================== */
+
+:root {
+  color-scheme: dark;
+  --bg-void: #020503;
+  --bg-abyss: #040b06;
+  --bg-panel: rgba(3, 12, 6, 0.86);
+  --bg-panel-solid: #040e07;
+  --bg-raised: rgba(6, 20, 10, 0.9);
+  --bg-terminal: #010402;
+  --bg-hover: rgba(0, 255, 65, 0.09);
+
+  --matrix-white: #e8ffef;
+  --matrix-bright: #00ff41;
+  --matrix-neon: #2bff62;
+  --matrix-mid: #5ce67e;
+  --matrix-soft: #3ca358;
+  --matrix-muted: #246b39;
+  --matrix-dim: #113b1d;
+  --matrix-wash: rgba(0, 255, 65, 0.1);
+  --matrix-wash-strong: rgba(0, 255, 65, 0.18);
+
+  --edge-faint: rgba(0, 255, 65, 0.14);
+  --edge: rgba(0, 255, 65, 0.28);
+  --edge-strong: rgba(0, 255, 65, 0.58);
+  --edge-hot: #00ff41;
+
+  --amber: #ffb800;
+  --amber-wash: rgba(255, 184, 0, 0.12);
+  --amber-edge: rgba(255, 184, 0, 0.48);
+
+  --redpill: #ff2a54;
+  --redpill-wash: rgba(255, 42, 84, 0.14);
+  --redpill-edge: rgba(255, 42, 84, 0.55);
+
+  --font-code: "Cascadia Mono", "JetBrains Mono", "Fira Code", "SFMono-Regular", Consolas, Menlo, "PingFang SC", "Microsoft YaHei", monospace;
+  --font-sans: var(--font-code);
+  --font-display: var(--font-code);
+
+  --glow-text: 0 0 10px rgba(0, 255, 65, 0.45);
+  --glow-strong: 0 0 16px rgba(0, 255, 65, 0.75), 0 0 32px rgba(0, 255, 65, 0.35);
+  --glow-box: 0 0 24px rgba(0, 255, 65, 0.08), inset 0 0 20px rgba(0, 255, 65, 0.04);
+  --glow-box-active: 0 0 30px rgba(0, 255, 65, 0.18), inset 0 0 24px rgba(0, 255, 65, 0.08);
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+[hidden], .hidden, #progress.hidden { display: none !important; }
+
+html, body {
+  min-height: 100%;
+  margin: 0;
+  background-color: var(--bg-void);
+  color: var(--matrix-white);
+  font: 13.5px/1.6 var(--font-code);
+  letter-spacing: 0.02em;
+  overflow-x: hidden;
+  selection-background-color: var(--matrix-bright);
+  selection-color: var(--bg-void);
+}
+
+::selection {
+  background: var(--matrix-bright);
+  color: var(--bg-void);
+  text-shadow: none;
+}
+
+/* ── Custom Matrix Scrollbar ── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #020804;
+  border-left: 1px solid var(--edge-faint);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--matrix-muted);
+  border: 1px solid var(--matrix-bright);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--matrix-bright);
+}
+
+/* ── Background Digital Rain & CRT Scanline Optics ── */
+.matrix-rain {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.24;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(900px 500px at 50% -10%, rgba(0, 255, 65, 0.12), transparent 70%),
+    radial-gradient(700px 420px at 85% 95%, rgba(0, 255, 65, 0.06), transparent 70%),
+    linear-gradient(rgba(0, 255, 65, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 255, 65, 0.025) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 32px 32px, 32px 32px;
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(
+      0deg,
+      rgba(0, 0, 0, 0.28) 0px,
+      rgba(0, 0, 0, 0.28) 1px,
+      transparent 1px,
+      transparent 3px
+    ),
+    radial-gradient(circle at 50% 50%, transparent 65%, rgba(0, 4, 1, 0.65) 100%);
+}
+
+body.page-home {
+  position: relative;
+  padding: 0 32px 40px;
+}
+
+.wrap {
+  position: relative;
+  z-index: 1;
+  max-width: 1380px;
+  margin: 0 auto;
+}
+
+/* ── Links & Focus ── */
+a {
+  color: var(--matrix-bright);
+  text-decoration: none;
+  transition: color 0.15s ease, text-shadow 0.15s ease;
+}
+a:hover {
+  color: var(--matrix-white);
+  text-shadow: var(--glow-text);
+}
+
+:focus {
+  outline: 1px solid var(--matrix-bright);
+  outline-offset: 3px;
+}
+:focus:not(:focus-visible) {
+  outline: none;
+}
+:focus-visible {
+  outline: 1px solid var(--matrix-bright);
+  outline-offset: 3px;
+  box-shadow: 0 0 12px rgba(0, 255, 65, 0.45);
+}
+
+.skip-link {
+  position: absolute;
+  top: -120px;
+  left: 20px;
+  z-index: 1000;
+  padding: 10px 18px;
+  background: var(--matrix-bright);
+  color: var(--bg-void);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.skip-link:focus {
+  top: 12px;
+  color: var(--bg-void);
+}
+
+/* ── Cybernetic Buttons & Inputs ── */
+button, input {
+  font: inherit;
+}
+
+button {
+  position: relative;
+  min-height: 38px;
+  padding: 8px 18px;
+  border: 1px solid var(--matrix-bright);
+  border-radius: 2px;
+  background: rgba(0, 255, 65, 0.16);
+  color: var(--matrix-white);
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-shadow: 0 0 8px rgba(0, 255, 65, 0.5);
+  box-shadow: 0 0 14px rgba(0, 255, 65, 0.18), inset 0 0 10px rgba(0, 255, 65, 0.12);
+  cursor: pointer;
+  transition: all 0.16s ease;
+  clip-path: polygon(0 0, calc(100% - 7px) 0, 100% 7px, 100% 100%, 7px 100%, 0 calc(100% - 7px));
+}
+
+button.primary {
+  background: linear-gradient(180deg, rgba(0, 255, 65, 0.28) 0%, rgba(0, 180, 45, 0.18) 100%);
+  border-color: var(--matrix-bright);
+  color: var(--matrix-white);
+}
+
+button:hover:not(:disabled) {
+  background: var(--matrix-bright);
+  border-color: var(--matrix-white);
+  color: var(--bg-void);
+  text-shadow: none;
+  box-shadow: 0 0 22px rgba(0, 255, 65, 0.65);
+  transform: translateY(-1px);
+}
+
+button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+button:disabled {
+  background: rgba(8, 24, 12, 0.55);
+  border-color: rgba(0, 255, 65, 0.14);
+  color: var(--matrix-muted);
+  text-shadow: none;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+button.ghost,
+button.mini {
+  background: rgba(3, 14, 7, 0.78);
+  border-color: var(--edge);
+  color: var(--matrix-mid);
+  text-shadow: none;
+  box-shadow: inset 0 0 8px rgba(0, 255, 65, 0.04);
+}
+
+button.ghost:hover:not(:disabled),
+button.mini:hover:not(:disabled) {
+  background: var(--matrix-wash-strong);
+  border-color: var(--matrix-bright);
+  color: var(--matrix-white);
+  text-shadow: var(--glow-text);
+  box-shadow: 0 0 14px rgba(0, 255, 65, 0.25);
+}
+
+button.ghost:disabled,
+button.mini:disabled {
+  background: rgba(2, 10, 5, 0.45);
+  border-color: var(--edge-faint);
+  color: #194d27;
+  box-shadow: none;
+}
+
+button.danger,
+button.risky {
+  background: var(--redpill-wash);
+  border-color: var(--redpill-edge);
+  color: #ff8da3;
+  text-shadow: 0 0 8px rgba(255, 42, 84, 0.35);
+  box-shadow: inset 0 0 10px rgba(255, 42, 84, 0.08);
+}
+
+button.danger:hover:not(:disabled),
+button.risky:hover:not(:disabled) {
+  background: var(--redpill);
+  border-color: #ff9eb0;
+  color: #090103;
+  text-shadow: none;
+  box-shadow: 0 0 20px rgba(255, 42, 84, 0.6);
+}
+
+button.mini {
+  min-height: 32px;
+  padding: 5px 11px;
+  font-size: 11.5px;
+}
+
+input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 17px;
+  height: 17px;
+  margin: 0;
+  border: 1px solid var(--matrix-mid);
+  background: #020804;
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+input[type="checkbox"]:hover {
+  border-color: var(--matrix-bright);
+  box-shadow: 0 0 8px rgba(0, 255, 65, 0.35);
+}
+
+input[type="checkbox"]:checked {
+  background: var(--matrix-bright);
+  border-color: var(--matrix-white);
+  box-shadow: 0 0 10px rgba(0, 255, 65, 0.55);
+}
+
+input[type="checkbox"]:checked::after {
+  content: "✓";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--bg-void);
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+/* ── Top Operator Masthead (.site-header) ── */
+.site-header {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 0 16px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--edge);
+}
+
+.site-header::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  width: 180px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--matrix-bright), transparent);
+  box-shadow: 0 0 12px var(--matrix-bright);
+}
+
+.brand-block {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.brand-mark {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  background: rgba(0, 255, 65, 0.12);
+  border: 1px solid var(--matrix-bright);
+  color: var(--matrix-bright);
+  font-size: 18px;
+  font-weight: 900;
+  text-shadow: var(--glow-strong);
+  box-shadow: 0 0 18px rgba(0, 255, 65, 0.25), inset 0 0 12px rgba(0, 255, 65, 0.15);
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+}
+
+.brand-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.brand {
+  color: var(--matrix-white);
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-shadow: var(--glow-text);
+}
+
+.brand-note {
+  color: var(--matrix-soft);
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.matrix-hud-meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-left: auto;
+  margin-right: 12px;
+  color: var(--matrix-muted);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+}
+
+.matrix-hud-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 9px;
+  border: 1px solid var(--edge-faint);
+  background: rgba(2, 10, 5, 0.65);
+  color: var(--matrix-soft);
+}
+
+.matrix-hud-meta b {
+  color: var(--matrix-bright);
+  font-weight: 700;
+}
+
+.site-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.site-nav a {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border: 1px solid var(--edge);
+  background: rgba(3, 12, 6, 0.8);
+  color: var(--matrix-mid);
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  clip-path: polygon(0 0, calc(100% - 7px) 0, 100% 7px, 100% 100%, 7px 100%, 0 calc(100% - 7px));
+  transition: all 0.16s ease;
+}
+
+.site-nav a:hover {
+  border-color: var(--matrix-bright);
+  background: var(--matrix-wash);
+  color: var(--matrix-white);
+  text-decoration: none;
+}
+
+.site-nav a[aria-current="page"] {
+  background: rgba(0, 255, 65, 0.18);
+  border-color: var(--matrix-bright);
+  color: var(--matrix-white);
+  text-shadow: var(--glow-text);
+  box-shadow: 0 0 18px rgba(0, 255, 65, 0.22), inset 0 0 12px rgba(0, 255, 65, 0.12);
+}
+
+.site-nav a[aria-current="page"]::before {
+  content: "▸";
+  color: var(--matrix-bright);
+}
+
+/* ── 4-Cell Bio/Hardline Telemetry Bar (.statebar) ── */
+.statebar {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0 0 20px;
+}
+
+.statebar > div {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  padding: 12px 16px 12px 18px;
+  background: var(--bg-panel);
+  border: 1px solid var(--edge);
+  box-shadow: var(--glow-box);
+  backdrop-filter: blur(6px);
+  overflow: hidden;
+}
+
+.statebar > div::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--matrix-bright);
+  box-shadow: 0 0 10px var(--matrix-bright);
+}
+
+.statebar > div::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 10px;
+  height: 10px;
+  border-top: 2px solid var(--matrix-bright);
+  border-right: 2px solid var(--matrix-bright);
+  opacity: 0.65;
+}
+
+.state-label {
+  color: var(--matrix-soft);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.statebar b {
+  color: var(--matrix-white);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.statebar b.ok {
+  color: var(--matrix-bright);
+  text-shadow: var(--glow-text);
+}
+
+.statebar b.warn,
+.statebar b.run {
+  color: var(--amber);
+  text-shadow: 0 0 10px rgba(255, 184, 0, 0.45);
+}
+
+.statebar b.err,
+.statebar b.bad {
+  color: var(--redpill);
+  text-shadow: 0 0 10px rgba(255, 42, 84, 0.5);
+}
+
+/* ── Main Workspace Grid & Flow-Done Collapsed Architecture ── */
+.home-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  gap: 20px;
+  align-items: start;
+}
+
+#act-services {
+  grid-column: 1 / -1;
+}
+
+/* Flow Complete Banner */
+.flow-banner {
+  grid-column: 1 / -1;
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 20px;
+  background:
+    linear-gradient(90deg, rgba(0, 255, 65, 0.16) 0%, rgba(3, 16, 8, 0.92) 45%, rgba(3, 14, 7, 0.92) 100%);
+  border: 1px solid var(--matrix-bright);
+  box-shadow: var(--glow-box-active);
+  position: relative;
+}
+
+.flow-banner::before {
+  content: "HARDLINE // ACTIVE";
+  position: absolute;
+  top: -9px;
+  left: 16px;
+  padding: 0 8px;
+  background: var(--bg-void);
+  color: var(--matrix-bright);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+}
+
+.flow-banner-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+}
+
+.pulse-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--matrix-bright);
+  box-shadow: 0 0 12px var(--matrix-bright), 0 0 24px var(--matrix-bright);
+  animation: matrix-pulse 1.8s infinite ease-in-out;
+  flex-shrink: 0;
+}
+
+@keyframes matrix-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.25); opacity: 0.65; }
+}
+
+.flow-banner h2 {
+  margin: 0;
+  color: var(--matrix-white);
+  font-size: 15.5px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-shadow: var(--glow-text);
+}
+
+.flow-banner-sub {
+  color: var(--matrix-mid);
+  font-size: 12px;
+}
+
+.flow-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Flow-Done State: Equal-Width Alignment */
+body.flow-done .home-workspace {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  align-items: stretch;
+}
+
+body.flow-done #flow-complete-banner {
+  grid-column: 1 / -1;
+  order: 1;
+}
+
+body.flow-done #act-services {
+  grid-column: 1 / -1;
+  order: 2;
+  border-color: var(--matrix-bright);
+  box-shadow: var(--glow-box-active);
+}
+
+body.flow-done #act-exploit {
+  order: 3;
+}
+
+body.flow-done #act-payloads {
+  order: 4;
+}
+
+/* ── Tactical HUD Panels (.act & .panel) ── */
+.act,
+.panel {
+  position: relative;
+  min-width: 0;
+  width: 100%;
+  margin: 0;
+  padding: 22px 24px;
+  background:
+    linear-gradient(var(--matrix-bright), var(--matrix-bright)) top left / 12px 2px no-repeat,
+    linear-gradient(var(--matrix-bright), var(--matrix-bright)) top left / 2px 12px no-repeat,
+    linear-gradient(var(--matrix-bright), var(--matrix-bright)) top right / 12px 2px no-repeat,
+    linear-gradient(var(--matrix-bright), var(--matrix-bright)) top right / 2px 12px no-repeat,
+    linear-gradient(var(--matrix-bright), var(--matrix-bright)) bottom left / 12px 2px no-repeat,
+    linear-gradient(var(--matrix-bright), var(--matrix-bright)) bottom left / 2px 12px no-repeat,
+    linear-gradient(var(--matrix-bright), var(--matrix-bright)) bottom right / 12px 2px no-repeat,
+    linear-gradient(var(--matrix-bright), var(--matrix-bright)) bottom right / 2px 12px no-repeat,
+    var(--bg-panel);
+  border: 1px solid var(--edge);
+  box-shadow: var(--glow-box);
+  backdrop-filter: blur(8px);
+}
+
+.act.is-folded {
+  width: 100%;
+  padding: 14px 20px;
+  background: rgba(3, 11, 6, 0.78);
+  border: 1px dashed var(--edge);
+}
+
+.act.is-folded .act-head {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.act-head,
+.panel-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
+  margin-bottom: 18px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--edge-faint);
+  position: relative;
+}
+
+.act-head::after,
+.panel-head::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  width: 72px;
+  height: 1px;
+  background: var(--matrix-bright);
+  box-shadow: 0 0 8px var(--matrix-bright);
+}
+
+.act.is-folded .act-head::after {
+  display: none;
+}
+
+.act-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 9px;
+  background: var(--matrix-wash-strong);
+  border: 1px solid var(--matrix-bright);
+  color: var(--matrix-bright);
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-shadow: var(--glow-text);
+}
+
+.act-head h2,
+.panel-head h2 {
+  margin: 0;
+  color: var(--matrix-white);
+  font-size: 16.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-shadow: var(--glow-text);
+}
+
+.act-head .sub {
+  margin-left: auto;
+  color: var(--matrix-soft);
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+}
+
+.mode-tag {
+  padding: 3px 10px;
+  background: rgba(0, 255, 65, 0.08);
+  border: 1px solid var(--edge);
+  color: var(--matrix-bright);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.mode-tag.ready {
+  background: var(--matrix-wash-strong);
+  border-color: var(--matrix-bright);
+  box-shadow: 0 0 12px rgba(0, 255, 65, 0.25);
+}
+
+.act-fold-btn {
+  margin-left: 6px;
+  flex-shrink: 0;
+}
+
+/* ── Act 01: Breach Status Card & 3-Stage Pipeline ── */
+.status-card {
+  position: relative;
+  margin: 0;
+  padding: 20px 22px;
+  border: 1px solid var(--edge);
+  background:
+    linear-gradient(rgba(0, 255, 65, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 255, 65, 0.03) 1px, transparent 1px),
+    var(--bg-raised);
+  background-size: 20px 20px, 20px 20px, 100% 100%;
+  box-shadow: inset 0 0 24px rgba(0, 255, 65, 0.04);
+}
+
+.status-card[data-state="ok"] {
+  border-color: var(--matrix-bright);
+  box-shadow: 0 0 20px rgba(0, 255, 65, 0.14), inset 0 0 24px rgba(0, 255, 65, 0.08);
+}
+
+.status-card[data-state="running"],
+.status-card[data-state="pc"] {
+  border-color: var(--amber-edge);
+  box-shadow: 0 0 18px rgba(255, 184, 0, 0.12), inset 0 0 20px rgba(255, 184, 0, 0.05);
+}
+
+.status-card[data-state="fail"] {
+  border-color: var(--redpill-edge);
+  box-shadow: 0 0 20px rgba(255, 42, 84, 0.18), inset 0 0 20px rgba(255, 42, 84, 0.08);
+}
+
+.status-card .badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 10px;
+  margin-bottom: 12px;
+  background: var(--bg-terminal);
+  border: 1px solid var(--edge);
+  color: var(--matrix-mid);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.status-card .badge .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--matrix-soft);
+}
+
+.status-card[data-state="ok"] .badge {
+  border-color: var(--matrix-bright);
+  background: var(--matrix-wash);
+  color: var(--matrix-bright);
+}
+
+.status-card[data-state="ok"] .badge .dot {
+  background: var(--matrix-bright);
+  box-shadow: 0 0 8px var(--matrix-bright);
+}
+
+.status-card[data-state="running"] .badge,
+.status-card[data-state="pc"] .badge {
+  border-color: var(--amber-edge);
+  background: var(--amber-wash);
+  color: var(--amber);
+}
+
+.status-card[data-state="running"] .badge .dot,
+.status-card[data-state="pc"] .badge .dot {
+  background: var(--amber);
+  box-shadow: 0 0 8px var(--amber);
+}
+
+.status-card[data-state="fail"] .badge {
+  border-color: var(--redpill-edge);
+  background: var(--redpill-wash);
+  color: var(--redpill);
+}
+
+.status-card[data-state="fail"] .badge .dot {
+  background: var(--redpill);
+  box-shadow: 0 0 8px var(--redpill);
+}
+
+.status-card h3 {
+  margin: 0 0 8px;
+  color: var(--matrix-white);
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.35;
+  text-shadow: var(--glow-text);
+}
+
+.status-card p {
+  margin: 0;
+  color: var(--matrix-mid);
+  font-size: 12.5px;
+  line-height: 1.7;
+}
+
+.status-card p code {
+  padding: 2px 6px;
+  background: rgba(0, 255, 65, 0.14);
+  border: 1px solid var(--edge);
+  color: var(--matrix-bright);
+  font-size: 12px;
+}
+
+.status-card .actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+/* 3-Stage Breach Rail */
+.rail {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.rail li {
+  position: relative;
+  padding: 12px 14px;
+  background: var(--bg-terminal);
+  border: 1px solid var(--edge-faint);
+  transition: all 0.2s ease;
+}
+
+.rail li[data-st="run"],
+.rail li.active {
+  border-color: var(--amber);
+  background: var(--amber-wash);
+  box-shadow: 0 0 14px rgba(255, 184, 0, 0.2);
+}
+
+.rail li[data-st="ok"],
+.rail li.done {
+  border-color: var(--matrix-bright);
+  background: var(--matrix-wash);
+  box-shadow: 0 0 14px rgba(0, 255, 65, 0.2);
+}
+
+.rail li[data-st="fail"] {
+  border-color: var(--redpill);
+  background: var(--redpill-wash);
+}
+
+.rail .stage-num {
+  display: block;
+  color: var(--matrix-bright);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  margin-bottom: 4px;
+}
+
+.rail li b {
+  display: block;
+  color: var(--matrix-white);
+  font-size: 12.5px;
+}
+
+/* ── CRT Console Log Box (#exploit-log & #console) ── */
+.log-box {
+  margin-top: 14px;
+  border: 1px solid var(--edge);
+  background: var(--bg-terminal);
+}
+
+.log-box summary {
+  padding: 10px 14px;
+  color: var(--matrix-mid);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  user-select: none;
+  background: rgba(0, 255, 65, 0.05);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.log-box summary:hover {
+  color: var(--matrix-white);
+  background: rgba(0, 255, 65, 0.12);
+}
+
+#console {
+  background: #010502;
+  border-top: 1px solid var(--edge-faint);
+  height: 200px;
+  overflow-y: auto;
+  padding: 12px 14px;
+  margin: 0;
+  color: var(--matrix-soft);
+  font: 11.5px/1.75 var(--font-code);
+}
+
+#console div {
+  color: var(--matrix-soft);
+}
+
+#console div:last-child:not(.e):not(.g) {
+  color: var(--matrix-white);
+  text-shadow: var(--glow-text);
+}
+
+#console .e {
+  color: var(--redpill);
+  text-shadow: 0 0 8px rgba(255, 42, 84, 0.4);
+}
+
+#console .g {
+  color: var(--matrix-bright);
+  text-shadow: var(--glow-text);
+}
+
+/* ── Act 02: Construct Payload Loader (.elf-list) ── */
+.elf-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--edge);
+  background: var(--bg-terminal);
+}
+
+.elf-row {
+  display: grid;
+  grid-template-columns: 26px 20px minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--edge-faint);
+  transition: background 0.15s ease;
+}
+
+.elf-row:last-child {
+  border-bottom: 0;
+}
+
+.elf-row:hover {
+  background: rgba(0, 255, 65, 0.07);
+}
+
+.elf-row.is-off {
+  opacity: 0.48;
+  background: rgba(1, 5, 2, 0.8);
+}
+
+.elf-row .ord {
+  color: var(--matrix-bright);
+  font-size: 11.5px;
+  font-weight: 800;
+  text-align: center;
+  padding: 2px 4px;
+  background: rgba(0, 255, 65, 0.08);
+  border: 1px solid var(--edge-faint);
+}
+
+.elf-row .meta {
+  min-width: 0;
+}
+
+.elf-row .line1 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.elf-row .line1 b {
+  color: var(--matrix-white);
+  font-size: 13.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.role-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  background: rgba(0, 255, 65, 0.12);
+  border: 1px solid var(--edge);
+  color: var(--matrix-bright);
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.elf-row .desc-inline {
+  color: var(--matrix-mid);
+  font-size: 11.5px;
+}
+
+.elf-row .ord-btns {
+  display: flex;
+  gap: 4px;
+}
+
+.elf-row .ord-btns button {
+  min-height: 28px;
+  min-width: 28px;
+  padding: 2px 7px;
+  background: rgba(3, 14, 7, 0.9);
+  border-color: var(--edge);
+  color: var(--matrix-mid);
+  font-size: 12px;
+  clip-path: none;
+}
+
+.elf-row .pill {
+  padding: 3px 9px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(2, 10, 5, 0.9);
+  border: 1px solid var(--edge-faint);
+  color: var(--matrix-soft);
+  white-space: nowrap;
+}
+
+.elf-row .pill[data-st="loaded"],
+.elf-row .pill[data-st="done"] {
+  color: var(--matrix-bright);
+  background: var(--matrix-wash);
+  border-color: var(--matrix-bright);
+  text-shadow: var(--glow-text);
+}
+
+.elf-row .pill[data-st="sending"] {
+  color: var(--amber);
+  background: var(--amber-wash);
+  border-color: var(--amber-edge);
+}
+
+.elf-row .pill[data-st="fail"],
+.elf-row .pill[data-st="failed"] {
+  color: var(--redpill);
+  background: var(--redpill-wash);
+  border-color: var(--redpill-edge);
+}
+
+.plan-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+label.Check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--matrix-mid);
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.pcsend {
+  padding: 14px 16px;
+  background: var(--bg-terminal);
+  border-top: 1px solid var(--edge-faint);
+}
+
+.pcsend-row {
+  display: grid;
+  grid-template-columns: 125px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.pcsend-row:first-child {
+  margin-top: 0;
+}
+
+.pcsend-row > span {
+  color: var(--matrix-soft);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.pcsend-row > code {
+  display: block;
+  padding: 8px 10px;
+  background: #010603;
+  border: 1px solid var(--edge-faint);
+  color: var(--matrix-bright);
+  font-size: 11px;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.dl-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--edge-faint);
+  font-size: 11.5px;
+}
+
+.dl-links a {
+  padding: 3px 9px;
+  background: rgba(0, 255, 65, 0.08);
+  border: 1px solid var(--edge);
+  color: var(--matrix-bright);
+}
+
+.dl-links a:hover {
+  background: var(--matrix-bright);
+  color: var(--bg-void);
+  text-decoration: none;
+}
+
+/* ── Act 03: Hardline Uplink QR Matrix (#act-services) ── */
+.qr-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px;
+  margin-bottom: 18px;
+  background: var(--bg-raised);
+  border: 1px solid var(--edge);
+  box-shadow: inset 0 0 18px rgba(0, 255, 65, 0.04);
+}
+
+.qr-toolbar-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.qr-ip-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.qr-ip-label {
+  color: var(--matrix-bright);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.qr-ip-input {
+  width: 175px;
+  min-height: 36px;
+  padding: 5px 12px;
+  border: 1px solid var(--matrix-bright);
+  background: var(--bg-terminal);
+  color: var(--matrix-white);
+  font: 700 13.5px/1.2 var(--font-code);
+  box-shadow: inset 0 0 10px rgba(0, 255, 65, 0.12);
+}
+
+.qr-ip-input:focus {
+  outline: 1px solid var(--matrix-white);
+  box-shadow: 0 0 14px rgba(0, 255, 65, 0.45);
+}
+
+.qr-ip-hint {
+  padding: 3px 8px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--matrix-soft);
+}
+
+.qr-ip-hint:empty {
+  display: none;
+}
+
+.qr-ip-hint[data-tone="ok"] {
+  color: var(--matrix-bright);
+  background: var(--matrix-wash);
+  border: 1px solid var(--edge);
+  text-shadow: var(--glow-text);
+}
+
+.qr-ip-hint[data-tone="seen"] {
+  color: var(--amber);
+  background: var(--amber-wash);
+  border: 1px solid var(--amber-edge);
+}
+
+.qr-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Candidate IP Radar Chips */
+.qr-candidates-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--edge);
+}
+
+.qr-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.qr-chip-label {
+  flex-shrink: 0;
+  min-width: 76px;
+  color: var(--matrix-soft);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.qr-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+button.ip-chip {
+  min-height: 32px;
+  padding: 4px 12px;
+  background: var(--bg-terminal);
+  border: 1px solid var(--edge);
+  color: var(--matrix-mid);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: none;
+  box-shadow: none;
+}
+
+button.ip-chip:hover:not(:disabled) {
+  background: var(--matrix-wash);
+  border-color: var(--matrix-bright);
+  color: var(--matrix-white);
+  transform: none;
+}
+
+button.ip-chip.is-active {
+  background: var(--matrix-wash-strong);
+  border-color: var(--matrix-bright);
+  color: var(--matrix-white);
+  box-shadow: 0 0 14px rgba(0, 255, 65, 0.28);
+}
+
+.ip-chip .chip-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--matrix-muted);
+  flex-shrink: 0;
+}
+
+.ip-chip .chip-dot[data-dot="online"] {
+  background: var(--matrix-bright);
+  box-shadow: 0 0 8px var(--matrix-bright);
+}
+
+.ip-chip .chip-dot[data-dot="seen"] {
+  background: var(--amber);
+  box-shadow: 0 0 8px var(--amber);
+}
+
+.ip-chip .chip-ip {
+  color: var(--matrix-white);
+  font-weight: 700;
+}
+
+.ip-chip.is-active .chip-ip {
+  color: var(--matrix-bright);
+  text-shadow: var(--glow-text);
+}
+
+.ip-chip .chip-meta {
+  color: var(--matrix-soft);
+  font-size: 11px;
+}
+
+/* Equal-Height Hardline Service Pods (.qr-cards) */
+.qr-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  align-items: stretch;
+}
+
+.qr-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 20px;
+  background:
+    linear-gradient(var(--matrix-bright), var(--matrix-bright)) top left / 10px 2px no-repeat,
+    linear-gradient(var(--matrix-bright), var(--matrix-bright)) top left / 2px 10px no-repeat,
+    linear-gradient(var(--matrix-bright), var(--matrix-bright)) bottom right / 10px 2px no-repeat,
+    linear-gradient(var(--matrix-bright), var(--matrix-bright)) bottom right / 2px 10px no-repeat,
+    var(--bg-raised);
+  border: 1px solid var(--edge);
+  min-width: 0;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.qr-card:hover {
+  border-color: var(--edge-strong);
+  box-shadow: var(--glow-box-active);
+}
+
+.qr-card[data-online="1"] {
+  border-color: var(--matrix-bright);
+  background:
+    linear-gradient(180deg, rgba(0, 255, 65, 0.1) 0%, rgba(4, 16, 8, 0.94) 45%);
+  box-shadow: var(--glow-box-active);
+}
+
+.qr-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 28px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--edge-faint);
+}
+
+.qr-card-top h3 {
+  margin: 0;
+  color: var(--matrix-white);
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-shadow: var(--glow-text);
+}
+
+.service-badge {
+  flex-shrink: 0;
+  padding: 3px 9px;
+  font-size: 11px;
+  font-weight: 700;
+  border: 1px solid var(--edge-faint);
+  background: var(--bg-terminal);
+  color: var(--matrix-soft);
+}
+
+.service-badge[data-up="on"] {
+  color: var(--matrix-bright);
+  background: var(--matrix-wash-strong);
+  border-color: var(--matrix-bright);
+  text-shadow: var(--glow-text);
+  box-shadow: 0 0 10px rgba(0, 255, 65, 0.22);
+}
+
+.service-badge[data-up="off"] {
+  color: var(--amber);
+  background: var(--amber-wash);
+  border-color: var(--amber-edge);
+}
+
+/* Phosphor QR Targeting Chamber */
+.qr-box {
+  position: relative;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 18px 14px;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(0, 255, 65, 0.12), transparent 72%),
+    var(--bg-terminal);
+  border: 1px solid var(--edge-faint);
+  cursor: pointer;
+  overflow: hidden;
+  transition: border-color 0.18s ease;
+}
+
+.qr-box:hover {
+  border-color: var(--matrix-bright);
+}
+
+/* Animated Matrix Laser Scanline over QR Chamber */
+.qr-box::after {
+  content: "";
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--matrix-bright), transparent);
+  box-shadow: 0 0 12px var(--matrix-bright);
+  opacity: 0.55;
+  animation: qr-laser-scan 3.6s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes qr-laser-scan {
+  0%, 100% { top: 14px; opacity: 0.2; }
+  50% { top: calc(100% - 36px); opacity: 0.75; }
+}
+
+.qr-canvas {
+  position: relative;
+  width: 178px;
+  height: 178px;
+  padding: 8px;
+  background: #d8ffe2;
+  border: 2px solid var(--matrix-bright);
+  box-shadow: 0 0 24px rgba(0, 255, 65, 0.32);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+body.flow-done .qr-canvas {
+  width: 194px;
+  height: 194px;
+}
+
+.qr-canvas .qr-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.qr-caption {
+  margin-top: 10px;
+  color: var(--matrix-mid);
+  font-size: 11.5px;
+  text-align: center;
+}
+
+.qr-url-bar {
+  padding: 8px 10px;
+  background: var(--bg-terminal);
+  border: 1px solid var(--edge-faint);
+  text-align: center;
+  min-width: 0;
+}
+
+.qr-url-code {
+  display: block;
+  color: var(--matrix-bright);
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.qr-card-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) auto auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-link.primary-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 5px 12px;
+  background: rgba(0, 255, 65, 0.16);
+  border: 1px solid var(--matrix-bright);
+  color: var(--matrix-white);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  text-decoration: none;
+  white-space: nowrap;
+  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
+  transition: all 0.15s ease;
+}
+
+.btn-link.primary-link:hover {
+  background: var(--matrix-bright);
+  color: var(--bg-void);
+  text-shadow: none;
+  box-shadow: 0 0 18px rgba(0, 255, 65, 0.55);
+  text-decoration: none;
+}
+
+/* ── Fullscreen QR Construct Modal ── */
+.qr-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.qr-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(1, 6, 3, 0.88);
+  backdrop-filter: blur(6px);
+}
+
+.qr-modal-dialog {
+  position: relative;
+  z-index: 1;
+  width: min(460px, 100%);
+  padding: 24px;
+  background: var(--bg-panel-solid);
+  border: 1px solid var(--matrix-bright);
+  box-shadow: 0 0 50px rgba(0, 255, 65, 0.35), inset 0 0 24px rgba(0, 255, 65, 0.08);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 14px;
+}
+
+.qr-modal-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--edge-faint);
+}
+
+.qr-modal-head h3 {
+  margin: 0;
+  color: var(--matrix-white);
+  font-size: 16.5px;
+  font-weight: 800;
+  text-shadow: var(--glow-text);
+}
+
+.qr-modal-svg {
+  width: 260px;
+  height: 260px;
+  padding: 12px;
+  background: #d8ffe2;
+  border: 2px solid var(--matrix-bright);
+  box-shadow: 0 0 30px rgba(0, 255, 65, 0.4);
+}
+
+.qr-modal-svg .qr-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.qr-modal-url {
+  padding: 6px 12px;
+  background: var(--bg-terminal);
+  border: 1px solid var(--edge);
+  color: var(--matrix-bright);
+  font-size: 12.5px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.qr-modal-desc {
+  margin: 0;
+  color: var(--matrix-mid);
+  font-size: 12.5px;
+}
+
+.qr-modal-foot {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+/* ── Responsive Breakpoints ── */
+@media (max-width: 1120px) {
+  .matrix-hud-meta {
+    display: none;
+  }
+  .home-workspace,
+  body.flow-done .home-workspace {
+    grid-template-columns: 1fr;
+  }
+  .qr-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 780px) {
+  body.page-home {
+    padding: 0 16px 28px;
+  }
+  .statebar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .rail,
+  .qr-cards {
+    grid-template-columns: 1fr;
+  }
+  .elf-row {
+    grid-template-columns: 24px 18px minmax(0, 1fr) auto;
+  }
+  .elf-row .pill,
+  .elf-row .send-one {
+    grid-column: 3 / 5;
+    justify-self: start;
+  }
+  .pcsend-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition: none !important;
+    animation: none !important;
+    scroll-behavior: auto !important;
+  }
+}

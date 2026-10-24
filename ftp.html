@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>传文件到 PS5 · FTP(2121)</title>
+  <title>传文件到 PS5 · 文件传输</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
@@ -106,13 +106,41 @@
 
     .hint { color: #666; font-size: 12px; margin-top: 10px; line-height: 1.7; }
     #toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px; }
+
+    .mode-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+    .mode-tab {
+      font-family: inherit; cursor: pointer; border-radius: 8px; font-size: 13px;
+      padding: 8px 14px; background: #111; color: #9ab; border: 1px solid #2a2a2a;
+    }
+    .mode-tab.active { background: #0b1014; color: #4fc3f7; border-color: #35586b; }
+    .mode-tab:disabled { opacity: 0.4; cursor: not-allowed; }
+    #mode-banner {
+      border: 1px solid #22303a; background: #0b1014; border-radius: 8px;
+      padding: 10px 14px; font-size: 13px; color: #9ab; line-height: 1.65; margin-bottom: 16px;
+    }
+    #mode-banner.warn { border-color: #4a3a20; color: #ffd54f; }
+    .direct-card { border: 1px solid #1e3a2a; background: #0a120e; }
+    .direct-card h3 { color: #81c784; font-size: 15px; margin-bottom: 8px; }
+    .direct-card a.btn-open {
+      display: inline-block; margin-top: 10px; padding: 9px 16px; border-radius: 8px;
+      background: #4fc3f7; color: #061014; text-decoration: none; font-size: 14px;
+    }
+    .direct-card code { color: #bcd; font-family: Consolas, Menlo, monospace; font-size: 13px; }
+    .panel-hidden { display: none !important; }
   </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>传文件到 PS5 <span class="accent">· FTP</span></h1>
-  <div class="subtitle">浏览器直连 PS5 的 FTP 服务（ftpsrv，端口 2121），由本页所在主机转发 —— 无需安装 FileZilla 等客户端。</div>
+  <h1>传文件到 PS5 <span class="accent">· 文件传输</span></h1>
+  <div class="subtitle">两种模式按需切换：局域网经本页服务器批量加速，或浏览器 / 客户端直连 PS5。</div>
 
+  <div class="mode-tabs" role="tablist" aria-label="传输模式">
+    <button type="button" class="mode-tab active" data-mode="relay" id="tab-relay">局域网加速中转</button>
+    <button type="button" class="mode-tab" data-mode="direct" id="tab-direct">浏览器直连 PS5</button>
+  </div>
+  <div id="mode-banner">正在检测本页服务器能否中转 PS5…</div>
+
+  <section id="panel-relay">
   <div class="card">
     <div class="row">
       <input type="text" id="host" placeholder="PS5 的 IP（如 192.168.3.x）" spellcheck="false">
@@ -121,7 +149,7 @@
       <span id="conn-state" style="color:#777;font-size:13px;"></span>
     </div>
     <div class="hint">
-      前提：PS5 已跑完破解流程，且已发送独立 FTP（ftpsrv，监听 2121）。
+      前提：PS5 已跑完破解流程（自动加载含独立 FTP，监听 2121）。
       PS5 的 IP 在 设置 → 网络 → 连接状态 里看。
     </div>
   </div>
@@ -186,6 +214,36 @@
     <div class="card-title">日志</div>
     <div id="console"></div>
   </div>
+  </section>
+
+  <section id="panel-direct" class="panel-hidden">
+    <article class="card direct-card" id="direct-zhttp" hidden>
+      <h3>ZHTTP 网页文件管理（推荐 · 大文件 / 拖拽上传）</h3>
+      <p>浏览器<strong>直连 PS5</strong>，不经本页服务器。手机/电脑须与 PS5 同一 Wi‑Fi。</p>
+      <p>地址：<code id="direct-zhttp-url">http://192.168.1.100:8888</code></p>
+      <a class="btn-open" id="direct-zhttp-open" href="#" target="_blank" rel="noreferrer">打开 ZHTTP 文件管理 ↗</a>
+    </article>
+    <article class="card direct-card">
+      <h3>FTP 客户端直连（ftpsrv / zftpd）</h3>
+      <p>不经本页服务器，从你的电脑/手机 FTP 客户端连 PS5。公网部署时这是<strong>批量传文件</strong>的通用方案（若未装 zftpd）。</p>
+      <ul class="hint" style="margin-top:8px;padding-left:18px;">
+        <li>主机：<code id="direct-ftp-host">192.168.1.100</code></li>
+        <li>端口：<code id="direct-ftp-port">2121</code>（ftpsrv）或 <code>2120</code>（zftpd）</li>
+        <li>协议：FTP · 被动模式 (PASV) · 二进制</li>
+        <li>账号/密码：任意（不校验）</li>
+        <li>推荐客户端：FileZilla、gFTP</li>
+        <li>游戏镜像目录：<code>/data/homebrew/</code></li>
+      </ul>
+    </article>
+    <article class="card">
+      <div class="card-title">何时用哪种？</div>
+      <div class="hint">
+        <p><strong>局域网加速中转</strong>：本机跑 serve.py，与 PS5 同网，要传成千上万个 ROM 小文件时用网页批量上传最快。</p>
+        <p><strong>浏览器直连 :8888</strong>：zftpd 已加载，公网/GitHub Pages 托管也能用，只要设备与 PS5 同 Wi‑Fi。</p>
+        <p><strong>FileZilla 直连</strong>：ftpsrv（无网页界面）或公网站点无法中转时的通用方案。</p>
+      </div>
+    </article>
+  </section>
 </div>
 
 <script>
@@ -260,11 +318,11 @@ const listUrl = (path, offset) =>
   "&port=" + state.port + "&path=" + encodeURIComponent(path) +
   "&limit=" + PAGE + "&offset=" + (offset || 0);
 
-/* ---------- 快捷路径 ---------- */
+/* ---------- 快捷路径（ShadowMountPlus 扫描目录等） ---------- */
 const QUICK_PATHS = [
-  { label: "🎮 homebrew", path: "/data/homebrew", create: true,  tip: "常用自制软件与游戏文件目录" },
-  { label: "🎮 游戏目录", path: "/data/etaHEN/games", create: true,  tip: "常见游戏安装路径（旧版 HEN 等）" },
-  { label: "📦 数据目录", path: "/data/shadowmount", create: true,  tip: "可选数据目录（若存在）" },
+  { label: "🎮 游戏镜像", path: "/data/homebrew", create: true,  tip: "ShadowMountPlus 默认扫描的第一目录（.ffpkg/.exfat，也放自制软件）" },
+  { label: "🎮 旧游戏目录", path: "/data/etaHEN/games", create: true,  tip: "ShadowMountPlus 扫描的第二目录（旧路径，同样有效）" },
+  { label: "📦 ShadowMount", path: "/data/shadowmount", create: true,  tip: "ShadowMountPlus 配置目录（config.ini 在这里）" },
   { label: "🏠 根目录", path: "/", create: false, tip: "PS5 文件系统根" },
 ];
 
@@ -297,6 +355,88 @@ async function gotoPath(q) {
   }
 }
 
+
+/* ---------- 双模式：局域网中转 vs 浏览器直连 ---------- */
+let transferMode = "relay";
+let lastProbe = null;
+
+function setMode(mode) {
+  transferMode = mode;
+  document.querySelectorAll(".mode-tab").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.mode === mode);
+  });
+  $("panel-relay").classList.toggle("panel-hidden", mode !== "relay");
+  $("panel-direct").classList.toggle("panel-hidden", mode !== "direct");
+}
+
+function updateDirectPanel(host, probe) {
+  const h = host || $("host").value.trim() || "192.168.1.100";
+  if ($("direct-ftp-host")) $("direct-ftp-host").textContent = h;
+  const ports = (probe && probe.ps5_ports) || {};
+  const ftpPort = ports["2121"] ? "2121" : (ports["2120"] ? "2120" : ($("port").value || "2121"));
+  if ($("direct-ftp-port")) $("direct-ftp-port").textContent = ftpPort;
+  const zhttp = probe && probe.direct && probe.direct.zhttp;
+  const zEl = $("direct-zhttp");
+  if (zEl) {
+    if (zhttp || ports["8888"]) {
+      const url = zhttp || ("http://" + h + ":8888");
+      zEl.hidden = false;
+      if ($("direct-zhttp-url")) $("direct-zhttp-url").textContent = url;
+      if ($("direct-zhttp-open")) $("direct-zhttp-open").href = url;
+    } else {
+      zEl.hidden = true;
+    }
+  }
+}
+
+function updateModeBanner(probe) {
+  lastProbe = probe;
+  const banner = $("mode-banner");
+  if (!banner) return;
+  banner.classList.remove("warn");
+  if (probe.relay_ok) {
+    banner.textContent = "本页服务器与 PS5 在同一局域网，可使用「局域网加速中转」批量传小文件。";
+  } else {
+    banner.classList.add("warn");
+    banner.textContent = (probe.relay_reason || "无法经本页服务器中转")
+      + " → 已推荐「浏览器直连 PS5」或 FileZilla。";
+  }
+  if ($("tab-relay")) $("tab-relay").disabled = !probe.relay_ok;
+}
+
+async function refreshCapabilities(connectIfRelay) {
+  const host = $("host").value.trim();
+  const port = parseInt($("port").value, 10) || 2121;
+  if (!host) return null;
+  try {
+    const probe = await api("/api/ftp/probe?host=" + encodeURIComponent(host) + "&port=" + port);
+    updateDirectPanel(host, probe);
+    updateModeBanner(probe);
+    if (probe.ftp_port) {
+      $("port").value = String(probe.ftp_port);
+      state.port = probe.ftp_port;
+    }
+    setMode(probe.recommended_mode === "relay" && probe.relay_ok ? "relay" : "direct");
+    if (connectIfRelay && probe.relay_ok && transferMode === "relay") await connect();
+    return probe;
+  } catch (e) {
+    if ($("mode-banner")) {
+      $("mode-banner").classList.add("warn");
+      $("mode-banner").textContent = "无法探测中转能力（" + (e.message || e) + "）——请用「浏览器直连」或 FileZilla。";
+    }
+    setMode("direct");
+    updateDirectPanel(host, null);
+    return null;
+  }
+}
+
+document.querySelectorAll(".mode-tab").forEach(btn => {
+  btn.addEventListener("click", () => {
+    if (btn.disabled) return;
+    setMode(btn.dataset.mode);
+  });
+});
+
 /* ---------- 浏览 ---------- */
 async function connect() {
   const host = $("host").value.trim();
@@ -304,7 +444,6 @@ async function connect() {
   if (!host) { log("请先填 PS5 的 IP", "e"); return; }
   state.host = host; state.port = port;
   localStorage.setItem("ps5ftp", host + ":" + port);
-  try { localStorage.setItem("psx.ps5ip", host); } catch (e) {}
   $("conn-state").textContent = "连接中…";
   try {
     const data = await api(listUrl("/"));
@@ -319,7 +458,12 @@ async function connect() {
   } catch (e) {
     state.connected = false;
     $("conn-state").textContent = "连接失败";
-    log(String(e.message || e), "e");
+    const msg = String(e.message || e);
+    log(msg, "e");
+    if (lastProbe && !lastProbe.relay_ok) {
+      log("提示：公网部署无法中转内网 IP，请切换到「浏览器直连 PS5」或使用 FileZilla。", "e");
+      setMode("direct");
+    }
   }
 }
 
@@ -818,7 +962,7 @@ $("upload-game").onclick = async () => {
   const q = QUICK_PATHS[0];                     // 游戏镜像目录
   await gotoPath(q);
   if (state.path !== q.path) { log("未能进入游戏目录，已取消", "e"); return; }
-  log("选择要上传的游戏镜像或文件（.ffpkg / .exfat / .ffpfs 等）");
+  log("选择游戏镜像文件（.ffpkg / .exfat / .ffpfs），上传后 ShadowMountPlus 约 15 秒内自动扫描识别");
   $("f-files").click();
 };
 $("clear-queue").onclick = () => {
@@ -869,12 +1013,16 @@ if (saved) {
   const [h, p] = saved.split(":");
   if (h) {
     $("host").value = h;
-    // 1337 是 etaHEN 时代、2120 是 zftpd 时代：都迁移回 ftpsrv 的 2121
-    if (p) $("port").value = (p === "1337" || p === "2120") ? "2121" : p;
-    connect();
+    if (p) $("port").value = (p === "1337") ? "2121" : p;
   }
 }
-log("页面就绪。填 PS5 的 IP 点「连接」——需破解页已跑完自动加载。");
+$("host").addEventListener("change", () => refreshCapabilities(false));
+$("port").addEventListener("change", () => refreshCapabilities(false));
+(async () => {
+  log("页面就绪。正在探测传输模式…");
+  if ($("host").value.trim()) await refreshCapabilities(true);
+  else log("填写 PS5 IP 后将自动选择最佳传输方式。");
+})();
 </script>
 </body>
 </html>
