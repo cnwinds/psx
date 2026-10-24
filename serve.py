@@ -460,13 +460,38 @@ class SiteHandler(FtpRelayHandler, SimpleHTTPRequestHandler):
         super().__init__(*args, directory=ROOT, **kwargs)
 
     # ---- 基础应答 ----
+    def _ftp_cors_headers(self):
+        """允许公网 ftp.html 跨域调用本机 serve.py 的 FTP API（Private Network Access）。"""
+        origin = self.headers.get("Origin")
+        if not origin:
+            return
+        self.send_header("Access-Control-Allow-Origin", origin)
+        self.send_header("Vary", "Origin")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header(
+            "Access-Control-Allow-Headers",
+            "Content-Type, X-Ftp-Host, X-Ftp-Port, X-Ftp-Path, X-Ftp-Dir",
+        )
+        self.send_header("Access-Control-Allow-Private-Network", "true")
+
     def _send_json(self, code, obj):
         body = json.dumps(obj, ensure_ascii=False).encode("utf-8")
         self.send_response(code)
+        if urlsplit(self.path).path.startswith("/api/ftp/"):
+            self._ftp_cors_headers()
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
+
+    def do_OPTIONS(self):
+        route = urlsplit(self.path).path
+        if route.startswith("/api/ftp"):
+            self.send_response(204)
+            self._ftp_cors_headers()
+            self.end_headers()
+            return
+        self.send_error(405)
 
     def _read_json(self):
         length = int(self.headers.get("Content-Length") or 0)

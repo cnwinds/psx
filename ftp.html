@@ -132,7 +132,7 @@
 <body>
 <div class="wrap">
   <h1>传文件到 PS5 <span class="accent">· 文件传输</span></h1>
-  <div class="subtitle">两种模式按需切换：局域网经本页服务器批量加速，或浏览器 / 客户端直连 PS5。</div>
+  <div class="subtitle">局域网加速中转（经本页服务器）或浏览器直连 PS5 FTP（页面内浏览/上传，无需 FileZilla）。</div>
 
   <div class="mode-tabs" role="tablist" aria-label="传输模式">
     <button type="button" class="mode-tab active" data-mode="relay" id="tab-relay">局域网加速中转</button>
@@ -217,39 +217,190 @@
   </section>
 
   <section id="panel-direct" class="panel-hidden">
+    <div class="card direct-card">
+      <h3>浏览器直连 PS5 FTP</h3>
+      <p id="direct-backend-hint" class="hint">填写上方 PS5 IP 后点「连接」——页面将通过 FTP 协议直连 PS5（ftpsrv :2121 / zftpd :2120）。</p>
+      <div class="row" id="bridge-row" style="margin-top:10px;display:none;">
+        <input type="text" id="bridge-base" placeholder="本机 bridge：http://192.168.x.x（运行 serve.py 的电脑 IP）" spellcheck="false" style="flex:1;">
+        <button type="button" class="ghost" id="bridge-save">保存</button>
+      </div>
+      <p id="direct-tcp-note" class="hint" style="margin-top:8px;display:none;"></p>
+    </div>
     <article class="card direct-card" id="direct-zhttp" hidden>
-      <h3>ZHTTP 网页文件管理（推荐 · 大文件 / 拖拽上传）</h3>
-      <p>浏览器<strong>直连 PS5</strong>，不经本页服务器。手机/电脑须与 PS5 同一 Wi‑Fi。</p>
+      <h3>备选：ZHTTP 网页文件管理（zftpd · :8888）</h3>
+      <p>若已加载 zftpd，也可打开 PS5 自带 ZHTTP 界面。</p>
       <p>地址：<code id="direct-zhttp-url">http://192.168.1.100:8888</code></p>
-      <a class="btn-open" id="direct-zhttp-open" href="#" target="_blank" rel="noreferrer">打开 ZHTTP 文件管理 ↗</a>
+      <a class="btn-open" id="direct-zhttp-open" href="#" target="_blank" rel="noreferrer">打开 ZHTTP ↗</a>
     </article>
-    <article class="card direct-card">
-      <h3>FTP 客户端直连（ftpsrv / zftpd）</h3>
-      <p>不经本页服务器，从你的电脑/手机 FTP 客户端连 PS5。公网部署时这是<strong>批量传文件</strong>的通用方案（若未装 zftpd）。</p>
-      <ul class="hint" style="margin-top:8px;padding-left:18px;">
-        <li>主机：<code id="direct-ftp-host">192.168.1.100</code></li>
-        <li>端口：<code id="direct-ftp-port">2121</code>（ftpsrv）或 <code>2120</code>（zftpd）</li>
-        <li>协议：FTP · 被动模式 (PASV) · 二进制</li>
-        <li>账号/密码：任意（不校验）</li>
-        <li>推荐客户端：FileZilla、gFTP</li>
-        <li>游戏镜像目录：<code>/data/homebrew/</code></li>
-      </ul>
-    </article>
-    <article class="card">
-      <div class="card-title">何时用哪种？</div>
+    <article class="card" id="direct-filezilla-hint" hidden>
       <div class="hint">
-        <p><strong>局域网加速中转</strong>：本机跑 serve.py，与 PS5 同网，要传成千上万个 ROM 小文件时用网页批量上传最快。</p>
-        <p><strong>浏览器直连 :8888</strong>：zftpd 已加载，公网/GitHub Pages 托管也能用，只要设备与 PS5 同 Wi‑Fi。</p>
-        <p><strong>FileZilla 直连</strong>：ftpsrv（无网页界面）或公网站点无法中转时的通用方案。</p>
+        <p>若页面仍无法连接，可用 FileZilla 连 <code id="direct-ftp-host">192.168.1.100</code>:<code id="direct-ftp-port">2121</code>（FTP · PASV · 任意账号）。</p>
       </div>
     </article>
   </section>
 </div>
 
-<script>
+<script type="module">
 "use strict";
 const $ = id => document.getElementById(id);
 const state = { host: "", port: 2121, path: "/", connected: false, uploading: false, total: 0, shown: 0 };
+import { BrowserFtpClient, browserFtpSupported } from "./src/ftp_browser.js";
+
+let ftpTcp = null;
+let backend = "relay"; // relay | bridge | tcp
+
+function isPrivateHost(h) {
+  return /^\d{1,3}(\.\d{1,3}){3}$/.test(h) && h !== "127.0.0.1"
+    && (h.startsWith("192.168.") || h.startsWith("10.") || /^172\.(1[6-9]|2\d|3[01])\./.test(h));
+}
+
+function apiBase() {
+  if (backend === "bridge") {
+    const b = ($("bridge-base") && $("bridge-base").value.trim()) || localStorage.getItem("ps5ftp.bridge") || "";
+    return b.replace(/\/$/, "");
+  }
+  return "";
+}
+
+async function api(url, opts) {
+  const base = apiBase();
+  const res = await fetch(base + url, opts);
+  let data = {};
+  try { data = await res.json(); } catch (e) {}
+  if (!res.ok) throw new Error(data.error || "HTTP " + res.status);
+  return data;
+}
+
+async function tcpList(path, offset) {
+  return ftpTcp.list(path, offset || 0, PAGE);
+}
+
+async function transportList(path, offset) {
+  if (backend === "tcp") return tcpList(path, offset);
+  return api(listUrl(path, offset));
+}
+
+async function transportMkdir(path) {
+  if (backend === "tcp") return ftpTcp.mkdir(path);
+  return api("/api/ftp/mkdir", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ host: state.host, port: state.port, path }),
+  });
+}
+
+async function transportDelete(path, entry) {
+  if (backend === "tcp") {
+    await ftpTcp.remove(path, entry.dir, entry.dir);
+    return;
+  }
+  return api("/api/ftp/delete", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      host: state.host, port: state.port, path,
+      dir: entry.dir, recursive: !!entry.dir,
+    }),
+  });
+}
+
+async function transportRename(path, to) {
+  if (backend === "tcp") return ftpTcp.rename(path, to);
+  return api("/api/ftp/rename", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ host: state.host, port: state.port, path, to }),
+  });
+}
+
+async function transportCheck(manifest) {
+  if (backend === "tcp") return ftpTcp.check(state.path, manifest);
+  return api("/api/ftp/check", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ host: state.host, port: state.port, path: state.path, files: manifest }),
+  });
+}
+
+function updateBackendUi() {
+  const hint = $("direct-backend-hint");
+  const bridgeRow = $("bridge-row");
+  const tcpNote = $("direct-tcp-note");
+  const fz = $("direct-filezilla-hint");
+  if (!hint) return;
+  if (transferMode === "relay") {
+    hint.textContent = "";
+    if (bridgeRow) bridgeRow.style.display = "none";
+    if (tcpNote) tcpNote.style.display = "none";
+    if (fz) fz.hidden = true;
+    return;
+  }
+  if (backend === "tcp") {
+    hint.textContent = "已启用浏览器 TCP 直连 PS5 FTP（TCPSocket）。";
+    if (bridgeRow) bridgeRow.style.display = "none";
+    if (tcpNote) { tcpNote.style.display = ""; tcpNote.textContent = "数据不经任何中转服务器，直连 ftpsrv/zftpd。"; }
+    if (fz) fz.hidden = true;
+  } else if (backend === "bridge") {
+    hint.textContent = "经本机 serve.py 转发（跨域调用局域网 bridge，公网站点可用）。";
+    if (bridgeRow) bridgeRow.style.display = "";
+    if (tcpNote) tcpNote.style.display = "none";
+    if (fz) fz.hidden = true;
+  } else {
+    hint.textContent = "填写 PS5 IP 后点连接；若失败请填写下方 bridge 或改用 FileZilla。";
+    if (bridgeRow) bridgeRow.style.display = browserFtpSupported() ? "none" : "";
+    if (tcpNote) {
+      tcpNote.style.display = browserFtpSupported() ? "" : "none";
+      tcpNote.textContent = browserFtpSupported()
+        ? "本浏览器支持 TCPSocket，将尝试 TCP 直连。"
+        : "当前浏览器不支持 TCPSocket，请填写本机 serve.py 地址作为 bridge。";
+    }
+    if (fz) fz.hidden = false;
+  }
+}
+
+async function pickBackend(probe) {
+  if (transferMode === "relay" && probe && probe.relay_ok) {
+    backend = "relay";
+    updateBackendUi();
+    return;
+  }
+  if (browserFtpSupported()) {
+    backend = "tcp";
+  } else {
+    const savedBridge = localStorage.getItem("ps5ftp.bridge") || "";
+    const loc = location.hostname;
+    const guess = isPrivateHost(loc) ? ("http://" + loc + (location.port ? ":" + location.port : "")) : savedBridge;
+    if ($("bridge-base") && !$("bridge-base").value && guess) $("bridge-base").value = guess;
+    backend = "bridge";
+  }
+  updateBackendUi();
+}
+
+async function openTcpConnection(host, port) {
+  if (ftpTcp) { try { await ftpTcp.close(); } catch (_) {} ftpTcp = null; }
+  ftpTcp = new BrowserFtpClient(host, port);
+  await ftpTcp.connect();
+  backend = "tcp";
+  updateBackendUi();
+}
+
+async function probeBridge() {
+  const base = apiBase();
+  if (!base) throw new Error("未填写 bridge 地址（本机 serve.py 的 http://局域网IP）");
+  const port = parseInt($("port").value, 10) || 2121;
+  const host = $("host").value.trim();
+  const res = await fetch(base + "/api/ftp/probe?host=" + encodeURIComponent(host) + "&port=" + port, { method: "GET" });
+  if (!res.ok) {
+    let err = "HTTP " + res.status;
+    try { err = (await res.json()).error || err; } catch (_) {}
+    throw new Error("bridge 不可用：" + err);
+  }
+  backend = "bridge";
+  localStorage.setItem("ps5ftp.bridge", base);
+  updateBackendUi();
+}
+
+
 const PAGE = 500;  // 大目录分页渲染：一次最多追加的行数
 // 小文件批量：一个 HTTP 请求带多个文件，服务端连接池内并行落地，
 // 绕开浏览器同源并发(≈6)的上限——这是小文件吞吐的真正杠杆。
@@ -306,13 +457,7 @@ function joinRemote(base, rel) {
   }
   return "/" + out.join("/");
 }
-async function api(url, opts) {
-  const res = await fetch(url, opts);
-  let data = {};
-  try { data = await res.json(); } catch (e) {}
-  if (!res.ok) throw new Error(data.error || "HTTP " + res.status);
-  return data;
-}
+/* api() defined in transport block */
 const listUrl = (path, offset) =>
   "/api/ftp/list?host=" + encodeURIComponent(state.host) +
   "&port=" + state.port + "&path=" + encodeURIComponent(path) +
@@ -343,11 +488,7 @@ async function gotoPath(q) {
   if (await load(q.path)) return;
   if (!q.create) return;                        // 错误信息 load() 已记入日志
   try {
-    await api("/api/ftp/mkdir", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ host: state.host, port: state.port, path: q.path })
-    });
+    await transportMkdir(q.path);
     log("目录不存在，已自动创建 " + q.path, "g");
     await load(q.path);
   } catch (e) {
@@ -365,8 +506,8 @@ function setMode(mode) {
   document.querySelectorAll(".mode-tab").forEach(btn => {
     btn.classList.toggle("active", btn.dataset.mode === mode);
   });
-  $("panel-relay").classList.toggle("panel-hidden", mode !== "relay");
   $("panel-direct").classList.toggle("panel-hidden", mode !== "direct");
+  updateBackendUi();
 }
 
 function updateDirectPanel(host, probe) {
@@ -399,7 +540,7 @@ function updateModeBanner(probe) {
   } else {
     banner.classList.add("warn");
     banner.textContent = (probe.relay_reason || "无法经本页服务器中转")
-      + " → 已推荐「浏览器直连 PS5」或 FileZilla。";
+      + " → 请切换到「浏览器直连 PS5」，在页面内连接 FTP。";
   }
   if ($("tab-relay")) $("tab-relay").disabled = !probe.relay_ok;
 }
@@ -417,15 +558,17 @@ async function refreshCapabilities(connectIfRelay) {
       state.port = probe.ftp_port;
     }
     setMode(probe.recommended_mode === "relay" && probe.relay_ok ? "relay" : "direct");
+    await pickBackend(probe);
     if (connectIfRelay && probe.relay_ok && transferMode === "relay") await connect();
     return probe;
   } catch (e) {
     if ($("mode-banner")) {
       $("mode-banner").classList.add("warn");
-      $("mode-banner").textContent = "无法探测中转能力（" + (e.message || e) + "）——请用「浏览器直连」或 FileZilla。";
+      $("mode-banner").textContent = "无法探测中转能力（" + (e.message || e) + "）——请用「浏览器直连 PS5」在页面内连 FTP。";
     }
     setMode("direct");
     updateDirectPanel(host, null);
+    await pickBackend(null);
     return null;
   }
 }
@@ -434,6 +577,7 @@ document.querySelectorAll(".mode-tab").forEach(btn => {
   btn.addEventListener("click", () => {
     if (btn.disabled) return;
     setMode(btn.dataset.mode);
+    pickBackend(lastProbe);
   });
 });
 
@@ -446,13 +590,30 @@ async function connect() {
   localStorage.setItem("ps5ftp", host + ":" + port);
   $("conn-state").textContent = "连接中…";
   try {
-    const data = await api(listUrl("/"));
+    if (transferMode === "relay") {
+      backend = "relay";
+    } else if (browserFtpSupported() && backend !== "bridge") {
+      try {
+        await openTcpConnection(host, port);
+      } catch (tcpErr) {
+        if (apiBase()) {
+          log("TCP 直连失败，尝试 bridge…", "e");
+          await probeBridge();
+        } else {
+          throw tcpErr;
+        }
+      }
+    } else {
+      await probeBridge();
+    }
+    const data = await transportList("/", 0);
     state.connected = true;
     state.path = data.path;
     $("conn-state").textContent = "已连接";
     $("browser").style.display = "";
     $("browser-off").style.display = "none";
-    log("已连接 " + host + ":" + port, "g");
+    const tag = backend === "tcp" ? "（TCP 直连）" : (backend === "bridge" ? "（bridge）" : "（中转）");
+    log("已连接 " + host + ":" + port + " " + tag, "g");
     buildQuick();
     render(data);
   } catch (e) {
@@ -460,8 +621,13 @@ async function connect() {
     $("conn-state").textContent = "连接失败";
     const msg = String(e.message || e);
     log(msg, "e");
-    if (lastProbe && !lastProbe.relay_ok) {
-      log("提示：公网部署无法中转内网 IP，请切换到「浏览器直连 PS5」或使用 FileZilla。", "e");
+    if (transferMode === "direct") {
+      backend = "bridge";
+      if ($("bridge-row")) $("bridge-row").style.display = "";
+      if ($("direct-filezilla-hint")) $("direct-filezilla-hint").hidden = false;
+      log("直连失败：若浏览器不支持 TCPSocket，请填写本机 serve.py 地址后重试。", "e");
+    } else if (lastProbe && !lastProbe.relay_ok) {
+      log("提示：公网部署无法中转，请切换到「浏览器直连 PS5」。", "e");
       setMode("direct");
     }
   }
@@ -469,7 +635,7 @@ async function connect() {
 
 async function load(path) {
   try {
-    render(await api(listUrl(path, 0)));
+    render(await transportList(path, 0));
     return true;
   } catch (e) {
     log(String(e.message || e), "e");
@@ -540,7 +706,7 @@ function render(data) {
 
 async function loadMore() {
   try {
-    const data = await api(listUrl(state.path, state.shown));
+    const data = await transportList(state.path, state.shown);
     for (const e of data.entries) appendRow(e);
     state.shown += data.entries.length;
     updateSummary();
@@ -555,14 +721,7 @@ async function remove(entry, path) {
     : "删除 " + path + " ？";
   if (!confirm(msg)) return;
   try {
-    await api("/api/ftp/delete", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        host: state.host, port: state.port, path: path,
-        dir: entry.dir, recursive: !!entry.dir
-      })
-    });
+    await transportDelete(path, entry);
     log("已删除 " + path, "g");
     load(state.path);
   } catch (e) {
@@ -577,37 +736,44 @@ async function renameEntry(entry, path) {
   );
   if (!to || to === entry.name) return;
   try {
-    const data = await api("/api/ftp/rename", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ host: state.host, port: state.port, path: path, to: to })
-    });
-    log("已改名/移动 → " + data.path, "g");
+    const data = await transportRename(path, to);
+    log("已改名/移动 → " + (data.path || to), "g");
     load(state.path);
   } catch (e) {
     log(String(e.message || e), "e");
   }
 }
 
-function downloadEntry(entry, path) {
+async function downloadEntry(entry, path) {
+  if (backend === "tcp") {
+    if (entry.dir) { log("TCP 直连暂不支持文件夹打包下载，请逐个下载或使用中转模式", "e"); return; }
+    log("开始下载 " + path);
+    try {
+      const body = await ftpTcp.download(path);
+      const blob = new Blob([body]);
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = path.split("/").pop();
+      a.click();
+      URL.revokeObjectURL(a.href);
+      log("下载完成 " + path, "g");
+    } catch (e) { log(String(e.message || e), "e"); }
+    return;
+  }
   const kind = entry.dir ? "zip" : "get";
-  const url = "/api/ftp/" + kind +
+  const url = apiBase() + "/api/ftp/" + kind +
     "?host=" + encodeURIComponent(state.host) +
     "&port=" + state.port + "&path=" + encodeURIComponent(path);
   log(entry.dir ? "正在打包下载 " + path + "（大文件夹需等待）…" : "开始下载 " + path);
-  location.href = url;          // 响应带 Content-Disposition，浏览器直接存文件
+  location.href = url;
 }
 
 async function mkdir() {
   const name = prompt("新文件夹名（可多级，如 PPSA99169/content）：");
   if (!name) return;
   try {
-    const data = await api("/api/ftp/mkdir", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ host: state.host, port: state.port, path: joinRemote(state.path, name) })
-    });
-    log("已创建 " + data.path, "g");
+    const data = await transportMkdir(joinRemote(state.path, name));
+    log("已创建 " + (data.path || joinRemote(state.path, name)), "g");
     load(state.path);
   } catch (e) {
     log(String(e.message || e), "e");
@@ -673,9 +839,18 @@ function refreshQueueUi() {
 
 function xhrPut(item) {
   const remote = joinRemote(state.path, item.rel);
+  if (backend === "tcp") {
+    item._t0 = performance.now();
+    return ftpTcp.upload(remote, item.file, (loaded, total) => {
+      if (item.barEl) item.barEl.style.width = (loaded / total * 100).toFixed(1) + "%";
+      if (item.stEl) item.stEl.textContent = fmtSize(loaded) + " / " + fmtSize(total);
+      stats.sent += loaded - (item._loaded || 0);
+      item._loaded = loaded;
+    }).then(({ remote: r }) => ({ remote: r, ms: performance.now() - item._t0 }));
+  }
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.open("POST", "/api/ftp/put");
+    xhr.open("POST", apiBase() + "/api/ftp/put");
     xhr.setRequestHeader("X-Ftp-Host", state.host);
     xhr.setRequestHeader("X-Ftp-Port", String(state.port));
     xhr.setRequestHeader("X-Ftp-Path", encodeURIComponent(remote));  // header 只能 ASCII，先转义
@@ -701,6 +876,20 @@ function xhrPut(item) {
 }
 
 async function xhrPutBatch(items) {
+  if (backend === "tcp") {
+    const ok = [];
+    const failed = [];
+    for (const it of items) {
+      try {
+        it._t0 = performance.now();
+        const { remote } = await xhrPut(it);
+        ok.push({ name: it.rel, ms: performance.now() - it._t0 });
+      } catch (e) {
+        failed.push({ name: it.rel, error: String(e.message || e) });
+      }
+    }
+    return { ok, failed };
+  }
   const dir = state.path;
   const enc = new TextEncoder();
   const names = items.map(it => enc.encode(it.rel));   // 完整相对路径，保留子目录结构
@@ -719,7 +908,7 @@ async function xhrPutBatch(items) {
   }
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.open("POST", "/api/ftp/putbatch");
+    xhr.open("POST", apiBase() + "/api/ftp/putbatch");
     xhr.setRequestHeader("X-Ftp-Host", state.host);
     xhr.setRequestHeader("X-Ftp-Port", String(state.port));
     xhr.setRequestHeader("X-Ftp-Dir", encodeURIComponent(dir));
@@ -753,11 +942,7 @@ async function filterIncremental() {
   $("qsummary").textContent = `正在比对 PS5 上已有文件（${queue.length} 项，目录多时可能需要数十秒）…`;
   const manifest = queue.map(q => ({ name: q.rel, size: q.file.size }));
   try {
-    const res = await api("/api/ftp/check", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ host: state.host, port: state.port, path: state.path, files: manifest })
-    });
+    const res = await transportCheck(manifest);
     if (res.need.length === queue.length) {
       log(`增量检查：${res.total} 个文件都不在 PS5 上，全量上传`);
       return;
@@ -832,7 +1017,7 @@ async function uploadAll() {
       // 聚合队首连续的小文件成一个批量请求；大文件/单个文件走单发
       const batch = [];
       let bytes = 0;
-      while (queue.length && batch.length < BATCH_MAX_FILES
+      while (backend !== "tcp" && queue.length && batch.length < BATCH_MAX_FILES
              && queue[0].file.size <= BATCH_SMALL
              && bytes + queue[0].file.size <= BATCH_MAX_BYTES) {
         batch.push(queue.shift());

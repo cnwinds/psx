@@ -119,6 +119,9 @@ test('首页保留脚本依赖的 DOM，且 ftp.html 提供双模式文件传输
   assert.match(ftp, /panel-relay/);
   assert.match(ftp, /panel-direct/);
   assert.match(ftp, /\/api\/ftp\/probe/);
+  assert.match(ftp, /ftp_browser\.js/);
+  assert.match(ftp, /transportList/);
+  assert.equal(existsSync(new URL('./src/ftp_browser.js', import.meta.url)), true);
   assert.match(readFileSync(new URL('./index.html', import.meta.url), 'utf8'), /href="\.\/ftp\.html"/);
   assert.match(readFileSync(new URL('./ftp_relay.py', import.meta.url), 'utf8'), /\/api\/ftp\/probe/);
   assert.match(readFileSync(new URL('./serve.py', import.meta.url), 'utf8'), /ftp_relay/);

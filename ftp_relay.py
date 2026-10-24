@@ -644,6 +644,8 @@ class FtpRelayHandler:
                     raise ValueError("读不到文件大小（SIZE 命令失败），无法下载") from error
                 name = posixpath.basename(path)
                 self.send_response(200)
+                if hasattr(self, "_ftp_cors_headers"):
+                    self._ftp_cors_headers()
                 self.send_header("Content-Type", "application/octet-stream")
                 self.send_header("Content-Length", str(size))
                 self.send_header("Content-Disposition", "attachment; filename*=UTF-8''" + quote(name))
@@ -688,6 +690,8 @@ class FtpRelayHandler:
                 spool.seek(0)
                 name = posixpath.basename(path) + ".zip"
                 self.send_response(200)
+                if hasattr(self, "_ftp_cors_headers"):
+                    self._ftp_cors_headers()
                 self.send_header("Content-Type", "application/zip")
                 self.send_header("Content-Length", str(total))
                 self.send_header("Content-Disposition", "attachment; filename*=UTF-8''" + quote(name))
