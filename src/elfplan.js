@@ -2,7 +2,7 @@
 // 幕二（加载 ELF）的单一数据源：site.js 渲染列表，payload_loader.js 按此发送。
 // 新增 payload 只需在 ELF_ITEMS 里加一项（如 websrv.elf），UI 与发送链路自动生效。
 //
-// 默认一键链：kstuff → ftpsrv → panplay（panplay 固定队尾）；ShadowMountPlus / websrv 可选。
+// 默认一键链：kstuff → ftpsrv → panplay（panplay 在队尾）；用户改过的顺序和勾选记在本地，下次原样打开。
 
 export const ELF_ITEMS = [
   {
@@ -64,7 +64,7 @@ export const ELF_ITEMS = [
 
 const PLAN_KEY = "psx.elfplan.v1";
 
-/** 一键加载链约定：panplay 始终排在最后（用户可上移，但默认与修复逻辑保证末尾）。 */
+/** 仅用于没有本地记录时的默认顺序：panplay 排在最后。 */
 function ensurePanplayLast(order) {
   const i = order.indexOf("panplay");
   if (i < 0 || i === order.length - 1) return order;
@@ -95,9 +95,11 @@ export function loadPlan() {
   for (const item of ELF_ITEMS) {
     if (item.on === false) off.add(item.id);
   }
+  let saved = false;
   try {
     const raw = JSON.parse(localStorage.getItem(PLAN_KEY) || "null");
     if (raw && Array.isArray(raw.order)) {
+      saved = true;
       const known = order;
       const kept = raw.order.filter((id) => known.indexOf(id) >= 0);
       for (const id of known) if (kept.indexOf(id) < 0) kept.push(id); // 新增条目排到队尾
@@ -108,7 +110,7 @@ export function loadPlan() {
       }
     }
   } catch (error) { /* 损坏则回落默认 */ }
-  order = ensurePanplayLast(order);
+  if (!saved) order = ensurePanplayLast(order);
   return { order, off };
 }
 

@@ -271,8 +271,8 @@ async function main(userlandRW) {
     log("elfldr is listening on port 9021", "info");
   } else {
     log("kernel chain complete: root and sandbox escape are active", "info");
-    log("elfldr did not load, payload sending is unavailable", "error");
   }
+  // 上游到此结束。返回值只给本站在其后加载 ELF，不改变上面的分支。
   return { p, chain, payloadsLoaded: !!result.payloads };
 }
 

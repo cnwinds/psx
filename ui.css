@@ -612,10 +612,10 @@ body.flow-done #act-payloads {
   flex-shrink: 0;
 }
 
-/* ── Act 01: 左 30%，右日志，两边同高 ── */
+/* ── Act 01: 左 40%，右日志，两边同高 ── */
 #body-exploit.exploit-row {
   display: grid;
-  grid-template-columns: 30% minmax(0, 1fr);
+  grid-template-columns: 40% minmax(0, 1fr);
   gap: 14px;
   align-items: stretch;
 }

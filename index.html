@@ -35,7 +35,7 @@
     <div class="flow-banner-main">
       <i class="pulse-dot" aria-hidden="true"></i>
       <h2 id="flow-banner-title">组件加载已完成</h2>
-      <span id="flow-banner-desc" class="flow-banner-sub">可展开详情查看日志与加载列表</span>
+      <span id="flow-banner-desc" class="flow-banner-sub"></span>
     </div>
     <div class="flow-banner-actions">
       <button type="button" id="btn-toggle-fold" class="ghost mini">展开详情 ▾</button>
@@ -56,7 +56,7 @@
         <div id="exploit-status" class="status-card" data-state="checking">
           <div class="badge"><span class="dot"></span><span id="status-badge">检测中</span></div>
           <h3 id="status-title">正在初始化…</h3>
-          <p id="status-body">打开页面即开始提权，成功后自动加载组件</p>
+          <p id="status-body">正在检测。</p>
           <div id="status-actions" class="actions" hidden></div>
         </div>
 
@@ -97,12 +97,8 @@
       <ol id="elf-rows" class="elf-list"></ol>
 
       <div class="plan-bar">
-        <button type="button" id="btn-runplan" class="primary" disabled>一键加载</button>
+        <button type="button" id="btn-runplan" class="primary" hidden disabled>一键加载</button>
         <button type="button" id="btn-resetplan" class="ghost mini">重置</button>
-        <label class="Check">
-          <input type="checkbox" id="autorun-opt" checked>
-          <span>自动加载</span>
-        </label>
       </div>
     </div>
   </section>

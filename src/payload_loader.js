@@ -18,8 +18,7 @@ let chainRunning = false;
 
 function log(message, type = "log") {
   if (typeof window.writeLog !== "function") return;
-  const cls = type === "error" ? "e" : type === "success" ? "g" : type;
-  window.writeLog(message, cls);
+  window.writeLog(message, type);
 }
 
 function sleep(ms) {
@@ -97,7 +96,7 @@ async function connectElfldr(addr) {
     await chain.syscall(SYS_CLOSE, fd);
     if (attempt >= CONNECT_ATTEMPTS)
       throw new Error(
-        "connect() 127.0.0.1:" + ELFLDR_PORT + " 失败（已重试 " + CONNECT_ATTEMPTS + " 次），elfldr 是否在监听？"
+        "connect() 127.0.0.1:" + ELFLDR_PORT + " 失败"
       );
     log("  connect 未就绪，" + (attempt * 1.2).toFixed(1) + " 秒后重试（" + attempt + "/" + CONNECT_ATTEMPTS + "）…");
     await sleep(1200 * attempt);
@@ -177,11 +176,11 @@ async function sendUriToElfldr(payloadUrl) {
 export async function sendPayload(file, fromChain = false) {
   if (!runtime) throw new Error("漏洞利用尚未完成");
   if (chainRunning && !fromChain) {
-    log("自动加载正在运行，请等待结束后再手动发送", "info");
+    log("自动加载正在运行", "info");
     return false;
   }
   if (running) {
-    log("已有 payload 正在发送，请稍候", "error");
+    log("正在发送", "error");
     return false;
   }
 
@@ -214,14 +213,14 @@ export async function runAutoChain() {
   try {
     const wanted = enabledChain();
     if (!wanted.length) {
-      log("没有勾选任何 ELF，先在幕二勾选", "error");
+      log("没有勾选 ELF", "error");
       return;
     }
 
     log("按顺序加载: " + wanted.map((it) => it.file).join(" → "), "info");
     for (let i = 0; i < wanted.length; i++) {
       if (!await sendPayload(wanted[i].file, true)) {
-        log(wanted[i].name + " 加载失败，已停止后续 ELF；检查后重试", "error");
+        log(wanted[i].name + " 加载失败，已停止", "error");
         return;
       }
       if (i < wanted.length - 1) {
@@ -240,18 +239,21 @@ export async function runAutoChain() {
 export function initializePayloadSender(p, chain) {
   runtime = { p, chain };
 
-  document.querySelectorAll("#elf-rows [data-file]").forEach((button) => {
-    button.addEventListener("click", () => {
+  const rows = document.getElementById("elf-rows");
+  if (rows && typeof rows.addEventListener === "function" && !rows._psxSendWired) {
+    rows._psxSendWired = true;
+    rows.addEventListener("click", (event) => {
+      const button = event.target && event.target.closest ? event.target.closest("[data-file]") : null;
+      if (!button || button.disabled) return;
       sendPayload(button.dataset.file);
     });
-  });
+  }
 
   const run = document.getElementById("btn-runplan");
-  if (run)
+  if (run && typeof run.addEventListener === "function" && !run._psxRunWired) {
+    run._psxRunWired = true;
     run.addEventListener("click", () => {
       runAutoChain();
     });
-
-  const autorun = document.getElementById("autorun-opt");
-  if (autorun && autorun.checked) runAutoChain();
+  }
 }

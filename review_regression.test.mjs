@@ -7,7 +7,7 @@ import {elfldrGetRequest, initializePayloadSender, payloadFetchUrl, runAutoChain
 test('PS5 启动：仅认浏览器 UA，不凭端口分支，一律进入可点击提权', async () => {
   const file = readFileSync(new URL('./src/site.js', import.meta.url), 'utf8');
   const source = file.slice(0, file.lastIndexOf('\nboot().catch('))
-    .replace(/^import .* from ['"]\.\/elfplan\.js['"];/m, '');
+    .replace(/^import .*$/gm, '');
   const events = [];
   let response = {ip: '192.168.1.2', ports: {'8080': true}};
   const consoleNode = {appendChild() {}, scrollTop: 0, scrollHeight: 0};
@@ -105,12 +105,12 @@ test('自动加载进行中忽略手动发送', async () => {
   };
   globalThis.location = {href: 'https://manuals.playstation.net/'};
   globalThis.window = {writeLog: message => messages.push(message), setElfRowState() {}};
+  const rows = {
+    addEventListener(_, callback) { listeners.set('click', callback); },
+  };
   globalThis.document = {
-    getElementById: () => ({disabled: false, checked: false, addEventListener() {}}),
-    querySelectorAll: () => [{
-      dataset: {file: 'kstuff.elf'},
-      addEventListener: (_, callback) => listeners.set('send', callback),
-    }],
+    getElementById: id => id === 'elf-rows' ? rows : {disabled: false, checked: false, addEventListener() {}},
+    querySelectorAll: () => [],
   };
   initializePayloadSender({
     malloc() { return {add32() { return this; }, backing: {set() {}}}; },
@@ -119,7 +119,9 @@ test('自动加载进行中忽略手动发送', async () => {
     syscall() { return gate.then(() => ({low: -1})); },
   });
   const auto = runAutoChain();
-  listeners.get('send')();
+  listeners.get('click')({
+    target: {closest: () => ({dataset: {file: 'kstuff.elf'}, disabled: false})},
+  });
   assert.match(messages.join('\n'), /自动加载正在运行/);
   release();
   await auto;
@@ -132,7 +134,7 @@ test('首页保留脚本依赖的 DOM，且不包含 FTP 中转页', () => {
     'exploit-status', 'status-title',
     'status-body', 'status-actions', 'rail', 'stage-webkit', 'stage-kernel',
     'stage-elfldr', 'console', 'act-payloads', 'btn-runplan', 'btn-resetplan',
-    'autorun-opt', 'plan-mode', 'elf-rows',
+    'plan-mode', 'elf-rows',
   ];
   assert.match(home, /href="\.\/ui\.css"/);
   const actual = [...home.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]);
@@ -144,11 +146,39 @@ test('首页保留脚本依赖的 DOM，且不包含 FTP 中转页', () => {
   assert.equal(existsSync(new URL('./src/qrcode.js', import.meta.url)), false);
   assert.doesNotMatch(readFileSync(new URL('./src/site.js', import.meta.url), 'utf8'), /\/api\/jbstate|\/api\/elfsend/);
   assert.doesNotMatch(readFileSync(new URL('./serve.py', import.meta.url), 'utf8'), /ftp_relay/);
-  assert.match(css, /#body-exploit\.exploit-row\s*\{[^}]*grid-template-columns:\s*30%\s+minmax\(0,\s*1fr\)/);
+  assert.match(css, /#body-exploit\.exploit-row\s*\{[^}]*grid-template-columns:\s*40%\s+minmax\(0,\s*1fr\)/);
   assert.match(css, /\.home-workspace\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/);
   assert.match(css, /body\.flow-done \.home-workspace\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/);
   assert.match(css, /\[hidden\].*display: none !important/);
   assert.match(css, /#console div:last-child:not\(\.e\):not\(\.g\)/);
+});
+
+test('提权主流程与 Relapse 的 run() 顺序一致', () => {
+  const site = readFileSync(new URL('./src/site.js', import.meta.url), 'utf8');
+  const main = readFileSync(new URL('./src/main.js', import.meta.url), 'utf8');
+  const run = site.slice(site.indexOf('async function runExploit'), site.indexOf('function enterReady'));
+  const steps = [
+    'window.firmware.rejection()',
+    'Credits: Sonic_Iso, Jordy, ntfargo',
+    'Agent: ${navigator.userAgent}',
+    'Firmware: ${window.fw_str}',
+    'await getPrimitive()',
+    'WebKit base: 0x${getWebKitBase().toString(16)}',
+    'await import("./relapse_exploit.js")',
+    'await main(activePrimitive)',
+  ];
+  let at = 0;
+  for (const step of steps) {
+    const next = run.indexOf(step, at);
+    assert.ok(next > at, `run() 缺少或顺序不对: ${step}`);
+    at = next + step.length;
+  }
+  assert.match(main, /log\("elfldr is listening on port 9021", "info"\)/);
+  assert.doesNotMatch(main, /elfldr did not load/);
+  assert.doesNotMatch(site, /jb-retry|textarea|autorun-opt|!payloadPanelReady && act/);
+  const ready = site.slice(site.indexOf('function enterReady'), site.indexOf('function startMatrixRain'));
+  assert.match(ready, /id="jb-start"/);
+  assert.match(ready, /if \(rejection\)/);
 });
 
 test('新版工作区保留键盘入口、表单标签与日志语义', () => {
@@ -165,7 +195,7 @@ test('新版工作区保留键盘入口、表单标签与日志语义', () => {
 test('全部流程完成后自动折叠 01 和 02', async () => {
   const file = readFileSync(new URL('./src/site.js', import.meta.url), 'utf8');
   const source = file.slice(0, file.lastIndexOf('\nboot().catch('))
-    .replace(/^import .* from ['"]\.\/elfplan\.js['"];/m, '');
+    .replace(/^import .*$/gm, '');
 
   const nodes = {};
   const getEl = (id) => {

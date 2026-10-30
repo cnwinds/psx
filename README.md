@@ -1,11 +1,11 @@
 # PS5 Relapse · All-in-One
 
-[Relapse-Exploit](https://github.com/ntfargo/Relapse-Exploit) 的一站式整合版：提权链路与上游相同（打开页面即跑，elfldr 监听 `9021`），本仓库只在其后按顺序加载 `payloads/` 里的 ELF。
+[Relapse-Exploit](https://github.com/ntfargo/Relapse-Exploit) 的一站式整合版：提权链路与上游相同（PS5 上点击后开始，elfldr 监听 `9021`），本仓库只在其后按顺序加载 `payloads/` 里的 ELF。
 
 ```
 PS5 浏览器打开本页
    │
-   ├─ 幕一 · 破解（与 Relapse 相同：打开页面即开始）
+   ├─ 幕一 · 破解（与 Relapse 相同：点击「开始提权」后开始）
    │   ├─ 1. WebKit 用户态漏洞（JSC 信息泄露 + 结构化克隆池错配）
    │   ├─ 2. 内核漏洞（aio_multi_wait UAF）→ 内核读写 + root + 沙箱逃逸
    │   └─ 3. kexp 于内核上下文拉起 elfldr，监听 127.0.0.1:9021
@@ -45,8 +45,8 @@ python scripts/sync_payloads.py --sync
 ### 方式一：一站式页面（推荐）
 
 1. 用 GitHub Pages 或局域网托管本仓库（见下），PS5 浏览器打开 `index.html`。
-2. 页面分两幕：**幕一「破解」**与 [Relapse-Exploit](https://github.com/ntfargo/Relapse-Exploit) 相同，PS5 打开页面即跑 WebKit → 内核 → elfldr。浏览器阶段偶发失败可刷新重试；内核阶段若死机需重启主机再来。
-3. 日志出现 `elfldr is listening on port 9021` 后自动按幕二勾选顺序加载 ELF（默认 `kstuff → ftpsrv → panplay`，「自动加载」默认勾选）。ELF 由 elfldr 从本站下载，不读进浏览器。
+2. 页面分两幕：**幕一「破解」**在 PS5 且固件可用时显示「开始提权」。点击后的链路与 [Relapse-Exploit](https://github.com/ntfargo/Relapse-Exploit) 相同：WebKit → 内核 → elfldr。
+3. 日志出现 `elfldr is listening on port 9021` 后，幕二出现「一键加载」。点击后按勾选顺序加载 ELF（默认 `kstuff → ftpsrv → panplay`）。ELF 由 elfldr 从本站下载，不读进浏览器。
 4. 默认链跑完后 FTP 连 `<PS5 IP>:2121` 传文件，浏览器打开 `http://<PS5 IP>:8734` 使用盘游；可选勾选 ShadowMountPlus / websrv。
 
 ### 方式二：PC 手动发送
