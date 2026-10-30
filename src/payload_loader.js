@@ -1,6 +1,7 @@
 // 页面内加载 payload：漏洞链跑通后 elfldr 监听 127.0.0.1:9021。
 // 浏览器不把 ELF 读进内存，而是用 ROP socket 向本机 9021 发
-// GET /?uri=<本站 ELF 的绝对地址>。elfldr 自己下载并执行。
+// GET /?uri=<ELF 的绝对地址>。elfldr 自己从本站下载并执行。
+// 内置文件在 payloads/；加入或更新过的文件在 payloads/library/。
 // 这样页面可以停在 HTTPS（用户指南），不必再 fetch('http://127.0.0.1:9021')。
 // 发送哪些、按什么顺序，全部由 elfplan（幕二的勾选与排序）决定。
 
@@ -9,6 +10,33 @@ import { loadPlan, itemById, itemByFile } from "./elfplan.js";
 const AF_INET = 2;
 const SOCK_STREAM = 1;
 const ELFLDR_PORT = 9021;
+
+// 开始提权时用刚得到的 chain 探一次 9021。只根据这一次 connect 的结果分叉：
+// 连上说明 elfldr 还在，调用方跳过内核；没连上（含套接字失败）就走原来的内核链。
+// 不做发送 ELF 时的退避重试，避免第一次提权被空等拖住。
+export async function elfldrPortOpen(p, chain) {
+  let fd = -1;
+  try {
+    const addr = p.malloc(0x10, 1);
+    for (let i = 0; i < 0x10; i++) p.write1(addr.add32(i), 0);
+    p.write1(addr.add32(0x0), 0x10);
+    p.write1(addr.add32(0x1), AF_INET);
+    p.write2(addr.add32(0x2), ((ELFLDR_PORT & 0xff) << 8) | ((ELFLDR_PORT >> 8) & 0xff));
+    p.write4(addr.add32(0x4), (127) | (0 << 8) | (0 << 16) | (1 << 24));
+
+    fd = ((await chain.syscall(SYS_SOCKET, AF_INET, SOCK_STREAM, 0)).low | 0);
+    if (fd < 0) return false;
+    const connected = ((await chain.syscall(SYS_CONNECT, fd, addr, 0x10)).low | 0);
+    return connected === 0;
+  } catch (error) {
+    return false;
+  } finally {
+    if (fd >= 0) {
+      try { await chain.syscall(SYS_CLOSE, fd); } catch (error) {}
+    }
+  }
+}
+
 const AUTO_STEP_DELAY_MS = 4000;
 const REPLY_MAX = 8192;
 
@@ -25,9 +53,8 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function setRow(file, state, bytes) {
-  const item = itemByFile(file);
-  if (item && window.setElfRowState) window.setElfRowState(item.id, state, bytes);
+function setRow(id, state, bytes) {
+  if (id && window.setElfRowState) window.setElfRowState(id, state, bytes);
 }
 
 function enabledChain() {
@@ -60,15 +87,23 @@ function preferPlainHttp(page) {
   return page.hostname === "manuals.playstation.net" || isPrivateIpv4(page.hostname);
 }
 
+const PAYLOAD_FILE = /^(?:library\/)?[A-Za-z0-9._-]+\.(elf|bin)$/i;
+
 export function payloadFetchUrl(file, pageHref) {
-  if (!/^[A-Za-z0-9._-]+$/.test(file)) throw new Error("非法 payload 文件名");
+  const name = String(file || "");
+  if (!PAYLOAD_FILE.test(name)) throw new Error("非法 payload 文件名");
   const page = new URL(pageHref);
   if (!page.pathname.endsWith("/") && !/\.html?$/i.test(page.pathname)) page.pathname += "/";
-  const same = new URL("payloads/" + file, page);
+  const same = new URL("payloads/" + name, page);
   same.search = "";
   same.hash = "";
   if (preferPlainHttp(page)) return "http://" + page.hostname + same.pathname;
   return same.href;
+}
+
+export function payloadUrlForItem(item, href) {
+  const name = item && item.library ? "library/" + item.file : item.file;
+  return payloadFetchUrl(name, href);
 }
 
 export function elfldrGetRequest(payloadUrl) {
@@ -173,7 +208,7 @@ async function sendUriToElfldr(payloadUrl) {
   }
 }
 
-export async function sendPayload(file, fromChain = false) {
+export async function sendPayload(key, fromChain = false) {
   if (!runtime) throw new Error("漏洞利用尚未完成");
   if (chainRunning && !fromChain) {
     log("自动加载正在运行", "info");
@@ -184,20 +219,24 @@ export async function sendPayload(file, fromChain = false) {
     return false;
   }
 
-  const item = itemByFile(file);
-  const title = item ? item.name : file;
+  const item = itemById(key) || itemByFile(key);
+  if (!item) {
+    log("没有这个 ELF", "error");
+    return false;
+  }
+  const title = item.name;
   running = true;
-  setRow(file, "sending");
+  setRow(item.id, "sending");
 
   try {
-    const url = payloadFetchUrl(file, pageHref());
+    const url = payloadUrlForItem(item, pageHref());
     log("让 elfldr 从本站加载 " + title + " ← " + url, "info");
     const reply = await sendUriToElfldr(url);
-    setRow(file, "done");
+    setRow(item.id, "done");
     log(title + " 已交给 elfldr" + (reply ? "（" + reply.slice(0, 80) + "）" : ""), "success");
     return true;
   } catch (error) {
-    setRow(file, "failed");
+    setRow(item.id, "failed");
     log(title + " 发送失败: " + (error instanceof Error ? error.message : error), "error");
     return false;
   } finally {
@@ -219,7 +258,7 @@ export async function runAutoChain() {
 
     log("按顺序加载: " + wanted.map((it) => it.file).join(" → "), "info");
     for (let i = 0; i < wanted.length; i++) {
-      if (!await sendPayload(wanted[i].file, true)) {
+      if (!await sendPayload(wanted[i].id, true)) {
         log(wanted[i].name + " 加载失败，已停止", "error");
         return;
       }
@@ -243,9 +282,9 @@ export function initializePayloadSender(p, chain) {
   if (rows && typeof rows.addEventListener === "function" && !rows._psxSendWired) {
     rows._psxSendWired = true;
     rows.addEventListener("click", (event) => {
-      const button = event.target && event.target.closest ? event.target.closest("[data-file]") : null;
+      const button = event.target && event.target.closest ? event.target.closest("[data-send], [data-file]") : null;
       if (!button || button.disabled) return;
-      sendPayload(button.dataset.file);
+      sendPayload(button.dataset.send || button.dataset.file);
     });
   }
 

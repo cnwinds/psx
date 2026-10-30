@@ -1,14 +1,21 @@
 // 首页编排：
-// 1. PS5 且固件可用时显示「开始提权」。点击后的链路与 Relapse 的 run() 相同。
+// 1. PS5 且固件可用时显示「开始提权」。点击后先做 WebKit 并探测 9021：
+//    已在监听则直接可加载 ELF；否则到 await main() 里的内核链与 Relapse 的 run() 相同。
 // 2. elfldr 就绪后显示「一键加载」，点击再按幕二勾选顺序加载 ELF。
+// 3. 提权前就可以排序、勾选，并从目录查找 ELF。加入时先下载到本站。选择记在本地。
 
-import { loadPlan, savePlan, resetPlan, itemById, formatSize } from "./elfplan.js";
+import { loadCatalog, savePayloadToHost, loadGithubRelease, saveReleaseAsset } from "./catalog.js";
+import { loadPlan, savePlan, resetPlan, itemById, formatSize, addCatalogEntry, removeFromPlan, searchWithPinned, planVersionUpdates, commitVersionUpdates, listedReleaseItems, planReleaseUpdate } from "./elfplan.js";
 import { establishPrimitive } from "./webkit.js";
 import { installWindowP } from "./utils/mem.js";
 
 const $ = (id) => document.getElementById(id);
 
 let plan = loadPlan();
+let catalogItems = [];
+let searchHits = [];
+let catalogState = "idle"; // idle | loading | ready | fail
+let saving = false;
 let rowState = {};          // id -> "wait" | "sending" | "loaded" | "skip" | "fail"
 let flowCollapsed = false;
 let exploitHeadline = "WebKit → 内核 → :9021";
@@ -144,7 +151,170 @@ function setFlowCollapsed(collapsed, reasonTitle, reasonDesc) {
   }
 }
 
-// 渲染幕二列表。每次顺序/勾选变化都整表重绘（只有 4 项，开销可忽略）。
+function esc(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (ch) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  }[ch]));
+}
+
+function payloadLine(item) {
+  const name = esc(item.name);
+  const ver = item.ver ? `<span class="ver-tag">${esc(item.ver)}</span>` : "";
+  return `<span class="name-ver"><b>${name}</b>${ver}</span>` +
+    `<span class="desc-inline">${esc(item.desc)}</span>`;
+}
+
+function planHasFile(file) {
+  return plan.order.some((id) => {
+    const it = itemById(id);
+    return it && it.file === file;
+  });
+}
+
+async function refreshLocalVersions() {
+  if (saving) return;
+  const btn = $("btn-updatever");
+  const note = $("catalog-note");
+  saving = true;
+  if (btn) btn.disabled = true;
+  if (note) {
+    note.hidden = false;
+    note.textContent = "正在更新";
+  }
+  const applied = [];
+  let catalogOk = false;
+  let checkingRelease = false;
+  try {
+    if (typeof loadCatalog !== "function" || typeof planVersionUpdates !== "function" || typeof commitVersionUpdates !== "function" || typeof savePayloadToHost !== "function") {
+      throw new Error("目录不可用");
+    }
+    try {
+      catalogItems = await loadCatalog();
+      catalogState = "ready";
+      catalogOk = true;
+    } catch (error) {
+      catalogItems = [];
+      catalogState = "fail";
+    }
+    const planned = catalogOk ? planVersionUpdates(catalogItems) : [];
+    if (typeof listedReleaseItems === "function" && typeof loadGithubRelease === "function" && typeof planReleaseUpdate === "function") {
+      const specs = listedReleaseItems(plan.order);
+      checkingRelease = specs.length > 0;
+      for (const spec of specs) {
+        const rel = await loadGithubRelease(spec.repo);
+        const change = planReleaseUpdate(spec.id, rel);
+        if (change && change.missing) throw new Error("无法保存到本站");
+        if (change) planned.push(change);
+      }
+    }
+    for (const change of planned) {
+      if (!change.revert) {
+        const saved = change.repo
+          ? await saveReleaseAsset(change.repo, change.tag, change.asset, change.saveAs, true)
+          : await savePayloadToHost(change.remoteFile, change.saveAs, true);
+        if (!saved || saved.file !== "library/" + change.saveAs) throw new Error("无法保存到本站");
+      }
+      commitVersionUpdates([change]);
+      applied.push(change);
+    }
+    renderPlan();
+    renderHits();
+    if (note) {
+      note.hidden = false;
+      if (!catalogOk && !applied.length && !checkingRelease) note.textContent = "目录不可用";
+      else if (applied.length) note.textContent = "已更新 " + applied.map((change) => change.name + " " + change.to).join("、");
+      else note.textContent = "已是最新";
+    }
+  } catch (error) {
+    renderPlan();
+    if (note) {
+      note.hidden = false;
+      if (checkingRelease && !applied.length) note.textContent = "无法保存到本站";
+      else if (!catalogOk && !applied.length) note.textContent = "目录不可用";
+      else if (applied.length) note.textContent = "已更新 " + applied.map((change) => change.name + " " + change.to).join("、") + "，其余无法保存";
+      else note.textContent = "无法保存到本站";
+    }
+  } finally {
+    saving = false;
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function ensureCatalog() {
+  if (catalogState === "ready" || catalogState === "loading") return;
+  if (typeof loadCatalog !== "function") {
+    catalogState = "fail";
+    return;
+  }
+  catalogState = "loading";
+  renderHits();
+  try {
+    catalogItems = await loadCatalog();
+    catalogState = "ready";
+  } catch (error) {
+    catalogItems = [];
+    catalogState = "fail";
+  }
+  renderHits();
+}
+
+function renderHits() {
+  const input = $("catalog-q");
+  const box = $("catalog-hits");
+  const note = $("catalog-note");
+  const clear = $("catalog-clear");
+  if (clear) clear.hidden = !(input && input.value);
+  if (!input || !box) return;
+  const q = input.value.trim();
+  if (!q) {
+    searchHits = [];
+    box.hidden = true;
+    box.innerHTML = "";
+    if (note && !saving) note.hidden = true;
+    return;
+  }
+  if (catalogState === "loading") {
+    box.hidden = true;
+    if (note) {
+      note.hidden = false;
+      note.textContent = "正在读取目录";
+    }
+    return;
+  }
+  if (typeof searchWithPinned !== "function") {
+    searchHits = [];
+    box.hidden = true;
+    box.innerHTML = "";
+    if (note) {
+      note.hidden = false;
+      note.textContent = "目录不可用";
+    }
+    return;
+  }
+  const fw = (typeof window !== "undefined" && window.fw_str) || "";
+  const source = catalogState === "ready" ? catalogItems : [];
+  searchHits = searchWithPinned(source, q, fw);
+  if (!searchHits.length) {
+    box.hidden = true;
+    box.innerHTML = "";
+    if (note) {
+      note.hidden = false;
+      note.textContent = catalogState === "fail" ? "目录不可用" : "没有匹配";
+    }
+    return;
+  }
+  if (note && !saving) note.hidden = true;
+  box.hidden = false;
+  box.innerHTML = searchHits.map((hit) => {
+    const added = planHasFile(hit.file);
+    return `<li class="catalog-hit">` +
+      `<div class="meta"><div class="line1">${payloadLine(hit)}</div></div>` +
+      `<button type="button" class="ghost mini" data-act="add" data-file="${esc(hit.file)}">${added ? "已加入" : "加入"}</button>` +
+      `</li>`;
+  }).join("");
+}
+
+// 渲染幕二列表。每次顺序/勾选变化都整表重绘。
 function renderPlan() {
   const list = $("elf-rows");
   if (!list) return;
@@ -159,22 +329,20 @@ function renderPlan() {
     const li = document.createElement("li");
     li.className = "elf-row" + (on ? "" : " is-off");
     li.dataset.id = id;
+    const name = esc(it.name);
     li.innerHTML =
-      `<span class="ord">0${idx + 1}</span>` +
-      `<input type="checkbox" class="chk" data-act="toggle" ${on ? "checked" : ""} aria-label="勾选 ${it.name}">` +
+      `<span class="ord">${String(idx + 1).padStart(2, "0")}</span>` +
+      `<input type="checkbox" class="chk" data-act="toggle" ${on ? "checked" : ""} aria-label="勾选 ${name}">` +
       `<div class="meta">` +
-        `<div class="line1">` +
-          `<b>${it.name}</b>` +
-          (it.role ? `<span class="role-tag">${it.role}</span>` : "") +
-          `<span class="desc-inline">${it.desc}</span>` +
-        `</div>` +
+        `<div class="line1">${payloadLine(it)}</div>` +
       `</div>` +
       `<div class="ord-btns">` +
-        `<button type="button" data-act="up" ${idx === 0 ? "disabled" : ""} title="上移" aria-label="上移 ${it.name}">↑</button>` +
-        `<button type="button" data-act="down" ${idx === order.length - 1 ? "disabled" : ""} title="下移" aria-label="下移 ${it.name}">↓</button>` +
+        `<button type="button" data-act="up" ${idx === 0 ? "disabled" : ""} title="上移" aria-label="上移 ${name}">↑</button>` +
+        `<button type="button" data-act="down" ${idx === order.length - 1 ? "disabled" : ""} title="下移" aria-label="下移 ${name}">↓</button>` +
+        `<button type="button" data-act="drop" title="移出列表" aria-label="移出 ${name}">移除</button>` +
       `</div>` +
       `<span class="pill" data-st="${st}">${STATE_TEXT[st]}</span>` +
-      `<button type="button" class="send-one ghost mini" data-act="send" data-file="${it.file}" ${canSend ? "" : "disabled"}>发送</button>`;
+      `<button type="button" class="send-one ghost mini" data-act="send" data-send="${esc(it.id)}" data-file="${esc(it.file)}" ${canSend ? "" : "disabled"}>发送</button>`;
     list.appendChild(li);
   });
 }
@@ -190,6 +358,13 @@ function wirePlanEvents() {
       const id = row.dataset.id;
       const act = btn.dataset.act;
       if (act === "send") return;
+      if (act === "drop") {
+        if (typeof removeFromPlan === "function") removeFromPlan(plan, id);
+        delete rowState[id];
+        renderPlan();
+        renderHits();
+        return;
+      }
       const idx = plan.order.indexOf(id);
       if (act === "toggle") {
         if (btn.checked) plan.off.delete(id); else plan.off.add(id);
@@ -214,6 +389,84 @@ function wirePlanEvents() {
     resetBtn.addEventListener("click", () => {
       plan = resetPlan();
       renderPlan();
+      renderHits();
+    });
+  }
+
+  const updateBtn = $("btn-updatever");
+  if (updateBtn) {
+    updateBtn.addEventListener("click", () => { refreshLocalVersions(); });
+  }
+
+  const catalogInput = $("catalog-q");
+  if (catalogInput) {
+    catalogInput.addEventListener("focus", () => {
+      if (catalogState === "fail") catalogState = "idle";
+      ensureCatalog();
+    });
+    catalogInput.addEventListener("input", () => {
+      ensureCatalog();
+      renderHits();
+    });
+  }
+  const catalogClear = $("catalog-clear");
+  if (catalogClear && catalogInput) {
+    catalogClear.hidden = !catalogInput.value;
+    catalogClear.addEventListener("click", () => {
+      catalogInput.value = "";
+      catalogInput.focus();
+      renderHits();
+    });
+  }
+  const catalogHits = $("catalog-hits");
+  if (catalogHits) {
+    catalogHits.addEventListener("click", async (e) => {
+      const btn = e.target.closest("[data-act='add']");
+      if (!btn || saving) return;
+      const hit = searchHits.find((item) => item.file === btn.dataset.file);
+      if (!hit || typeof addCatalogEntry !== "function") return;
+      const note = $("catalog-note");
+      if (hit.pinned) {
+        const result = addCatalogEntry(plan, hit);
+        if (!result) return;
+        if (result.already) {
+          if (note) {
+            note.hidden = false;
+            note.textContent = "已在列表";
+          }
+          return;
+        }
+        if (note) note.hidden = true;
+        renderPlan();
+        renderHits();
+        return;
+      }
+      saving = true;
+      if (note) {
+        note.hidden = false;
+        note.textContent = "正在保存";
+      }
+      try {
+        if (typeof savePayloadToHost !== "function") throw new Error("无法保存到本站");
+        const saved = await savePayloadToHost(hit.file, "", true);
+        if (!saved || saved.file !== "library/" + hit.file) throw new Error("无法保存到本站");
+        const result = addCatalogEntry(plan, Object.assign({}, hit, { library: true }));
+        if (!result) throw new Error("无法保存到本站");
+        if (result.already) {
+          if (note) note.textContent = "已在列表";
+          return;
+        }
+        if (note) note.hidden = true;
+        renderPlan();
+        renderHits();
+      } catch (error) {
+        if (note) {
+          note.hidden = false;
+          note.textContent = "无法保存到本站";
+        }
+      } finally {
+        saving = false;
+      }
     });
   }
 

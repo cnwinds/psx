@@ -261,6 +261,18 @@ async function prepareRop(p) {
 
 async function main(userlandRW) {
   const { p, chain } = await prepareRop(userlandRW);
+  // 同一次点击：9021 已通则不再进内核。探测或模块加载失败都继续下面的内核链。
+  let alreadyListening = false;
+  try {
+    const { elfldrPortOpen } = await import("./payload_loader.js");
+    alreadyListening = await elfldrPortOpen(p, chain);
+  } catch (error) {
+    alreadyListening = false;
+  }
+  if (alreadyListening) {
+    log("elfldr is listening on port 9021", "info");
+    return { p, chain, payloadsLoaded: true };
+  }
   const { runKernelExploit } = await import("./relapse_exploit.js");
   const result = await runKernelExploit(p, chain, log);
   if (!result || !result.done)

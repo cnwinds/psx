@@ -31,14 +31,14 @@ services:
         echo 'nameserver 223.5.5.5' > /etc/resolv.conf
         echo 'nameserver 119.29.29.29' >> /etc/resolv.conf
         # apk 源依次重试（国内源优先），失败显式 FATAL（busybox 的 set -e 会吞 OR 兜底块的退出码）
-        PKGS="dnsmasq nginx openssl curl"
+        PKGS="dnsmasq nginx openssl curl python3"
         for m in mirrors.ustc.edu.cn mirrors.tuna.tsinghua.edu.cn mirrors.aliyun.com dl-cdn.alpinelinux.org; do
         echo "https://$$m/alpine/v3.20/main" > /etc/apk/repositories
         echo "https://$$m/alpine/v3.20/community" >> /etc/apk/repositories
         echo "ps5-host: apk via $$m"
         apk add -U $$PKGS >/dev/null 2>&1 && break
         done
-        command -v nginx >/dev/null && command -v dnsmasq >/dev/null && command -v curl >/dev/null || { echo "ps5-host: FATAL all apk mirrors failed"; exit 1; }
+        command -v nginx >/dev/null && command -v dnsmasq >/dev/null && command -v curl >/dev/null && command -v python3 >/dev/null || { echo "ps5-host: FATAL all apk mirrors failed"; exit 1; }
 
         LAN_IP=$$(ip -4 addr show dev eth0 | awk '/inet /{split($$2,a,"/"); print a[1]; exit}')
         echo "ps5-host: container IP = $$LAN_IP (PS5 首选 DNS 填这个，备用留空)"
@@ -88,6 +88,33 @@ services:
         cat > /etc/nginx/http.d/default.conf <<'NGINX_EOF'
         server {
         listen 80 default_server;
+        location = /api/payload/release {
+        proxy_pass http://127.0.0.1:8765;
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 60s;
+        }
+        location = /api/payload/fetch {
+        proxy_pass http://127.0.0.1:8765;
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 60s;
+        }
+        location /payloads/library/ {
+        alias /srv/payload-library/;
+        default_type application/octet-stream;
+        add_header Cache-Control no-store;
+        }
+        location = /payloads/payload_map.js {
+        proxy_pass http://45.56.67.85/payloads/payload_map.js;
+        proxy_set_header Host 45.56.67.85;
+        proxy_connect_timeout 2s;
+        proxy_read_timeout 3s;
+        proxy_intercept_errors on;
+        error_page 500 502 503 504 = @catalog_snapshot;
+        }
+        location @catalog_snapshot {
+        root /srv/www;
+        try_files /payloads/payload_map.js =404;
+        }
         location /document { return 302 /; }
         location / { root /srv/www; index index.html; try_files $$uri $$uri/ /index.html; }
         }
@@ -95,10 +122,42 @@ services:
         listen 443 ssl default_server;
         ssl_certificate     /srv/certs/cert.pem;
         ssl_certificate_key /srv/certs/key.pem;
+        location = /api/payload/release {
+        proxy_pass http://127.0.0.1:8765;
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 60s;
+        }
+        location = /api/payload/fetch {
+        proxy_pass http://127.0.0.1:8765;
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 60s;
+        }
+        location /payloads/library/ {
+        alias /srv/payload-library/;
+        default_type application/octet-stream;
+        add_header Cache-Control no-store;
+        }
+        location = /payloads/payload_map.js {
+        proxy_pass http://45.56.67.85/payloads/payload_map.js;
+        proxy_set_header Host 45.56.67.85;
+        proxy_connect_timeout 2s;
+        proxy_read_timeout 3s;
+        proxy_intercept_errors on;
+        error_page 500 502 503 504 = @catalog_snapshot;
+        }
+        location @catalog_snapshot {
+        root /srv/www;
+        try_files /payloads/payload_map.js =404;
+        }
         location /document { return 302 /; }
         location / { root /srv/www; index index.html; try_files $$uri $$uri/ /index.html; }
         }
         NGINX_EOF
+
+        mkdir -p /srv/payload-library
+        if [ -f /srv/www/scripts/payload_store.py ]; then
+        python3 /srv/www/scripts/payload_store.py --bind 127.0.0.1:8765 --root /srv/payload-library &
+        fi
 
         dnsmasq --test -C /etc/ps5-dnsmasq.conf
         dnsmasq --no-daemon -C /etc/ps5-dnsmasq.conf &
@@ -110,6 +169,7 @@ services:
     volumes:
       - ps5-certs:/srv/certs
       - ps5-www:/srv/www
+      - ps5-library:/srv/payload-library
 
 networks:
   lan:
@@ -124,3 +184,4 @@ networks:
 volumes:
   ps5-certs:
   ps5-www:
+  ps5-library:

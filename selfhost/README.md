@@ -23,6 +23,8 @@
 2. **证书必须带 SAN**：PS5 的 WebKit 校验 `subjectAltName` 而非 CN，只有 CN 的自签证书可能直接连接失败（flex36ty 的脚本同样加了 SAN）。`start.sh` 已用 `-addext 'subjectAltName=DNS:manuals.playstation.net'`。
 3. **用户指南路径重定向**：PS5 用户指南打开的是 `https://manuals.playstation.net/document/...` 具体路径，不重定向会 404。nginx 已配置 `location /document { return 302 /; }`（行为对齐 flex36ty 的 serve_https.py）。
 
+ELF 目录 `/payloads/payload_map.js` 在容器能访问 `45.56.67.85` 时回源实时数据，失败则用仓库快照。离线仍可搜索已收录的 ELF。加入或更新 ELF 时，容器把文件下载到卷 `ps5-library`（页面路径 `/payloads/library/`），之后加载只走本站。单文件版同样挂了这个卷。
+
 ## 部署步骤
 
 **① 拿文件**：把本仓库放到 NAS，例如：
@@ -71,8 +73,8 @@ Container Station 若支持 LXD，可建 Ubuntu 容器直接跑 flex36ty 的 `se
 
 | 文件 | 作用 |
 |---|---|
-| `docker-compose.yml` | macvlan 给容器独立内网 IP（避开 QTS 自占的 80/443），挂仓库根为站点目录 |
+| `docker-compose.yml` | macvlan 给容器独立内网 IP（避开 QTS 自占的 80/443），挂仓库根为站点目录，`ps5-library` 卷存放加入的 ELF |
 | `ps5-dnsmasq.conf` | DNS：接管 `manuals.playstation.net`，屏蔽 PS5/PS4 更新域名，上游国内 DNS；例外放行 `store.playstation.com` / `image.api.playstation.com`（商店元数据与封面抓取） |
-| `start.sh` | 容器入口：装依赖 → 自签证书（SAN，幂等）→ 起 dnsmasq + nginx（含 `/document` 302） |
+| `start.sh` | 容器入口：装依赖 → 自签证书（SAN，幂等）→ 起目录下载服务、dnsmasq 与 nginx（含 `/document` 302、目录回源、`/payloads/library/`） |
 
 仅供教育与研究用途，仅限自有设备；屏蔽更新、修改 DNS 均有风险，见主 README 免责声明。

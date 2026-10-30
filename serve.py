@@ -20,6 +20,7 @@ import threading
 import time
 import queue
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+import urllib.request
 from urllib.parse import parse_qs, urlsplit
 
 # ---------------- 可按需修改的配置 ----------------
@@ -28,6 +29,7 @@ DNS_PORT = 53             # Windows 上通常无需管理员即可绑定
 HTTP_PORT = 80
 HTTPS_PORT = 443
 UPSTREAMS = ["223.5.5.5", "119.29.29.29"]   # 放行域名的上游解析（阿里/腾讯）
+CATALOG_MAP_URL = "http://45.56.67.85/payloads/payload_map.js"
 TTL = 300
 # 索尼域名全拦（NXDOMAIN）
 BLOCKED_SUFFIXES = (
@@ -51,6 +53,9 @@ GUIDE_DOMAIN = "manuals.playstation.net"    # 劫持到本机（用户指南入�
 ROOT = os.path.dirname(os.path.abspath(__file__))
 CERT = os.path.join(ROOT, "certs", "cert.pem")
 KEY = os.path.join(ROOT, "certs", "key.pem")
+LIBRARY_DIR = os.path.join(ROOT, "payloads", "library")
+sys.path.insert(0, os.path.join(ROOT, "scripts"))
+from payload_store import latest_release, save_catalog_payload, save_github_release
 
 
 def out(message):
@@ -512,7 +517,72 @@ class SiteHandler(SimpleHTTPRequestHandler):
         if route.path == "/api/jbstate":
             self._api_jbstate(parse_qs(route.query))
             return
+        if route.path == "/api/payload/release":
+            self._api_payload_release(parse_qs(route.query))
+            return
+        if route.path == "/api/payload/fetch":
+            self._api_payload_fetch(parse_qs(route.query))
+            return
+        if route.path == "/payloads/payload_map.js" and self._proxy_payload_map():
+            return
         super().do_GET()
+
+    def _api_payload_release(self, qs):
+        repo = (qs.get("repo") or [""])[0]
+        try:
+            info = latest_release(repo)
+        except ValueError as error:
+            self._send_json(400, {"error": str(error)})
+            return
+        except Exception as error:
+            out(f"[payload] 发行版查询失败 {repo}: {error}")
+            self._send_json(502, {"error": "无法检查更新"})
+            return
+        self._send_json(200, info)
+
+    def _api_payload_fetch(self, qs):
+        remote = (qs.get("file") or [""])[0]
+        save = (qs.get("save") or [None])[0] or None
+        refresh = (qs.get("refresh") or ["0"])[0] in ("1", "true", "yes")
+        repo = (qs.get("repo") or [""])[0]
+        tag = (qs.get("tag") or [""])[0]
+        try:
+            if repo:
+                name, size = save_github_release(LIBRARY_DIR, repo, tag, remote, save, refresh)
+            else:
+                name, size = save_catalog_payload(LIBRARY_DIR, remote, save, refresh)
+        except ValueError as error:
+            self._send_json(400, {"error": str(error)})
+            return
+        except Exception as error:
+            out(f"[payload] 保存失败 {remote}: {error}")
+            self._send_json(502, {"error": "无法保存到本站"})
+            return
+        self._send_json(200, {"file": "library/" + name, "size": size})
+
+    def _proxy_payload_map(self):
+        """能连上目录站就回源，失败则交给后面的静态快照。"""
+        try:
+            req = urllib.request.Request(
+                CATALOG_MAP_URL,
+                headers={"User-Agent": "psx-catalog", "Accept": "*/*"},
+            )
+            with urllib.request.urlopen(req, timeout=2) as resp:
+                if getattr(resp, "status", 200) != 200:
+                    return False
+                body = resp.read(256 * 1024)
+        except Exception:
+            return False
+        if not body or (b"payload_map" not in body[:4096] and b"fileName" not in body[:8192]):
+            return False
+        data = body[:256 * 1024]
+        self.send_response(200)
+        self.send_header("Content-Type", "text/javascript; charset=utf-8")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+        return True
 
     def do_POST(self):
         parsed = urlsplit(self.path)

@@ -94,10 +94,19 @@
     </header>
 
     <div class="act-body" id="body-payloads">
+      <div class="catalog" id="catalog">
+        <div class="catalog-search">
+          <input id="catalog-q" type="search" placeholder="查找 ELF" autocomplete="off" spellcheck="false" enterkeyhint="search" aria-label="查找 ELF">
+          <button type="button" id="catalog-clear" class="catalog-clear" hidden aria-label="清除">×</button>
+        </div>
+        <p id="catalog-note" class="catalog-note" hidden></p>
+        <ul id="catalog-hits" class="catalog-hits" hidden></ul>
+      </div>
       <ol id="elf-rows" class="elf-list"></ol>
 
       <div class="plan-bar">
         <button type="button" id="btn-runplan" class="primary" hidden disabled>一键加载</button>
+        <button type="button" id="btn-updatever" class="ghost mini">更新版本</button>
         <button type="button" id="btn-resetplan" class="ghost mini">重置</button>
       </div>
     </div>

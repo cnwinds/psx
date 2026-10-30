@@ -120,7 +120,7 @@ def read_elfplan_entry(entry_id: str) -> tuple[str, int] | None:
     return block.group(1), int(block.group(2))
 
 
-def patch_elfplan(entry_id: str, version: str, size: int) -> None:
+def patch_elfplan(entry_id: str, version: str, size: int) -> bool:
     with open(ELFPLAN_PATH, encoding="utf-8") as f:
         text = f.read()
     block = re.search(
@@ -129,13 +129,14 @@ def patch_elfplan(entry_id: str, version: str, size: int) -> None:
         re.DOTALL,
     )
     if not block:
-        raise SystemExit(f"elfplan.js 无 id={entry_id}")
+        return False
     chunk = block.group(1)
     chunk = re.sub(r'(\n\s*ver: ")[^"]+(")', rf"\g<1>{version}\2", chunk, count=1)
     chunk = re.sub(r"(\n\s*size: )\d+(,)", rf"\g<1>{size}\2", chunk, count=1)
     text = text[: block.start(1)] + chunk + text[block.end(1) :]
     with open(ELFPLAN_PATH, "w", encoding="utf-8") as f:
         f.write(text)
+    return True
 
 
 def asset_url(repo: str, tag: str, asset_template: str) -> str:
@@ -180,12 +181,11 @@ def inspect_spec(spec: dict) -> dict:
     plan_ver, plan_size = plan if plan else ("?", 0)
     remote_size = asset["size"] if asset else 0
     remote_ver = normalize_version(tag)
-    up_to_date = (
-        asset is not None
-        and local_size == remote_size
-        and plan_ver == remote_ver
-        and plan_size == remote_size
-    )
+    file_ok = asset is not None and local_size == remote_size and local_size > 0
+    if plan is None:
+        up_to_date = file_ok
+    else:
+        up_to_date = file_ok and plan_ver == remote_ver and plan_size == remote_size
     return {
         "id": spec["id"],
         "repo": spec["repo"],
@@ -210,8 +210,10 @@ def sync_spec(spec: dict, info: dict) -> None:
     print(f"  下载 {spec['id']} {info['tag']} …")
     size = download(url, dest)
     ver = normalize_version(info["tag"])
-    patch_elfplan(spec["id"], ver, size)
-    print(f"  已更新 {spec['file']} ({size} B) → elfplan ver={ver}")
+    if patch_elfplan(spec["id"], ver, size):
+        print(f"  已更新 {spec['file']} ({size} B) → elfplan ver={ver}")
+    else:
+        print(f"  已更新 {spec['file']} ({size} B)")
 
 
 def main() -> None:

@@ -18,6 +18,8 @@ services:
       - ./certs:/srv/certs
       # 挂载整个仓库（all-in-one 页面 + 全部 payload）作为站点根目录
       - ..:/srv/www:ro
+      # 搜索加入 / 更新版本写下的 ELF。站点目录只读，不能写进 /srv/www。
+      - ps5-library:/srv/payload-library
 
 networks:
   lan:
@@ -29,3 +31,6 @@ networks:
       config:
         - subnet: 192.168.1.0/24
           gateway: 192.168.1.1
+
+volumes:
+  ps5-library:
