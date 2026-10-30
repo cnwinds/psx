@@ -1,11 +1,11 @@
 # PS5 Relapse · All-in-One
 
-[Relapse-Exploit](https://github.com/ntfargo/Relapse-Exploit) 的一站式整合版：原仓库只包含漏洞利用链（跑通后 elfldr 监听 `9021`），缺少需要手动发送的 payload。本仓库把它们全部打包进 `payloads/`，并在页面上实现了自动发送——**打开一个页面即可完成全部流程**。
+[Relapse-Exploit](https://github.com/ntfargo/Relapse-Exploit) 的一站式整合版：提权链路与上游相同（打开页面即跑，elfldr 监听 `9021`），本仓库只在其后按顺序加载 `payloads/` 里的 ELF。
 
 ```
 PS5 浏览器打开本页
    │
-   ├─ 幕一 · 破解（检测已破解则自动跳过，绝不重复运行）
+   ├─ 幕一 · 破解（与 Relapse 相同：打开页面即开始）
    │   ├─ 1. WebKit 用户态漏洞（JSC 信息泄露 + 结构化克隆池错配）
    │   ├─ 2. 内核漏洞（aio_multi_wait UAF）→ 内核读写 + root + 沙箱逃逸
    │   └─ 3. kexp 于内核上下文拉起 elfldr，监听 127.0.0.1:9021
@@ -45,8 +45,8 @@ python scripts/sync_payloads.py --sync
 ### 方式一：一站式页面（推荐）
 
 1. 用 GitHub Pages 或局域网托管本仓库（见下），PS5 浏览器打开 `index.html`。
-2. 页面分两幕：**幕一「破解」**先探测本机是否已在破解状态（elfldr 9021 在线即整段跳过——重复运行内核漏洞可能死机，页面不会自动重跑）；确认未破解则**自动开始**漏洞链并**自动加载**幕二勾选的 ELF，全程无需按键。浏览器阶段偶发失败——刷新即可自动重跑，内核阶段若死机则重启主机再来。探测接口失灵时自动开始会退化为手动确认（防误判重复破解）。非 PS5 设备打开会显示电脑视图（下载、服务扫码、发送命令）。
-3. 日志出现 `elfldr is listening on port 9021` 后幕二自动解锁。ELF 列表**可勾选（是否加载）、可排序（↑↓ 调整顺序）**并保存在本机；发送前会探测端口**跳过已加载的组件**（ftpsrv `:2121`、panplay `:8734`、websrv `:8080` 监听即视为已加载；kstuff 无端口可探，始终照发）；页面通过 ROP 直接向 `127.0.0.1:9021` 发送字节流，全程无需 PC 参与。
+2. 页面分两幕：**幕一「破解」**与 [Relapse-Exploit](https://github.com/ntfargo/Relapse-Exploit) 相同，PS5 打开页面即跑 WebKit → 内核 → elfldr。浏览器阶段偶发失败可刷新重试；内核阶段若死机需重启主机再来。
+3. 日志出现 `elfldr is listening on port 9021` 后自动按幕二勾选顺序加载 ELF（默认 `kstuff → ftpsrv → panplay`，「自动加载」默认勾选）。ELF 由 elfldr 从本站下载，不读进浏览器。
 4. 默认链跑完后 FTP 连 `<PS5 IP>:2121` 传文件，浏览器打开 `http://<PS5 IP>:8734` 使用盘游；可选勾选 ShadowMountPlus / websrv。
 
 ### 方式二：PC 手动发送

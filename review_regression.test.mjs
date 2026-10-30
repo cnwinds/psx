@@ -2,9 +2,9 @@ import assert from 'node:assert/strict';
 import {existsSync, readFileSync} from 'node:fs';
 import {runInNewContext} from 'node:vm';
 import {test} from 'node:test';
-import {initializePayloadSender, runAutoChain} from './src/payload_loader.js';
+import {elfldrGetRequest, initializePayloadSender, payloadFetchUrl, runAutoChain} from './src/payload_loader.js';
 
-test('启动状态：8080-only 不自动重跑，缺少 ports 时不自动重跑', async () => {
+test('PS5 启动：仅认浏览器 UA，不凭端口分支，一律进入可点击提权', async () => {
   const file = readFileSync(new URL('./src/site.js', import.meta.url), 'utf8');
   const source = file.slice(0, file.lastIndexOf('\nboot().catch('))
     .replace(/^import .* from ['"]\.\/elfplan\.js['"];/m, '');
@@ -35,13 +35,13 @@ test('启动状态：8080-only 不自动重跑，缺少 ports 时不自动重跑
     globalThis.runBoot = boot;
   `, sandbox);
   await sandbox.runBoot();
-  assert.deepEqual(events, ['partial']);
+  assert.deepEqual(events, ['ready']);
   response = {ip: '192.168.1.2'};
   await sandbox.runBoot();
-  assert.deepEqual(events, ['partial', 'unknown']);
-  response = {ip: '192.168.1.2', ports: {}};
+  assert.deepEqual(events, ['ready', 'ready']);
+  response = {ip: '192.168.1.2', ports: {'9021': true}};
   await sandbox.runBoot();
-  assert.deepEqual(events, ['partial', 'unknown', 'ready']);
+  assert.deepEqual(events, ['ready', 'ready', 'ready']);
 });
 
 test('发送链按勾选顺序运行，首个 ELF 失败即停止且按钮恢复', async () => {
@@ -50,7 +50,7 @@ test('发送链按勾选顺序运行，首个 ELF 失败即停止且按钮恢复
   globalThis.localStorage = {
     getItem: () => JSON.stringify({order: ['kstuff', 'smp'], off: ['websrv']}),
   };
-  globalThis.window = {writeLog() {}, setElfRowState() {}};
+  globalThis.window = {writeLog() {}, setElfRowState() {}, canTrustPortProbe: () => false};
   globalThis.document = {
     getElementById: id => id === 'btn-runplan' ? button : {checked: false},
     querySelectorAll: () => [],
@@ -64,19 +64,46 @@ test('发送链按勾选顺序运行，首个 ELF 失败即停止且按钮恢复
   };
   initializePayloadSender({}, {});
   await runAutoChain();
-  assert.equal(requested.filter(url => url.startsWith('payloads/')).length, 1);
-  assert.match(requested[1], /kstuff\.elf/);
+  assert.equal(requested.filter(url => url.startsWith('payloads/')).length, 0);
   assert.equal(button.disabled, false);
 });
 
-test('自动加载探测端口期间忽略手动发送，不会中断自动队列', async () => {
-  const requested = [];
+test('本站 ELF 地址：内网 HTTPS 改走 80，公网 HTTPS 保持不变', () => {
+  assert.equal(
+    payloadFetchUrl('kstuff.elf', 'https://manuals.playstation.net/'),
+    'http://manuals.playstation.net/payloads/kstuff.elf',
+  );
+  assert.equal(
+    payloadFetchUrl('panplay.elf', 'https://192.168.1.250/index.html'),
+    'http://192.168.1.250/payloads/panplay.elf',
+  );
+  assert.equal(
+    payloadFetchUrl('ftpsrv.elf', 'https://user.github.io/psx/'),
+    'https://user.github.io/psx/payloads/ftpsrv.elf',
+  );
+  assert.equal(
+    payloadFetchUrl('kstuff.elf', 'http://192.168.1.2:8000/'),
+    'http://192.168.1.2:8000/payloads/kstuff.elf',
+  );
+  const req = elfldrGetRequest('http://manuals.playstation.net/payloads/kstuff.elf');
+  assert.match(req, /^GET \/\?uri=http%3A%2F%2Fmanuals\.playstation\.net%2Fpayloads%2Fkstuff\.elf HTTP\/1\.1\r\n/);
+  assert.match(req, /Host: 127\.0\.0\.1:9021\r\nConnection: close\r\n\r\n$/);
+});
+
+test('自动加载进行中忽略手动发送', async () => {
   const messages = [];
   const listeners = new Map();
-  let finishProbe;
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  globalThis.SYS_SOCKET = 1;
+  globalThis.SYS_CONNECT = 2;
+  globalThis.SYS_CLOSE = 3;
+  globalThis.SYS_WRITE = 4;
+  globalThis.SYS_READ = 5;
   globalThis.localStorage = {
     getItem: () => JSON.stringify({order: ['kstuff'], off: ['smp', 'websrv']}),
   };
+  globalThis.location = {href: 'https://manuals.playstation.net/'};
   globalThis.window = {writeLog: message => messages.push(message), setElfRowState() {}};
   globalThis.document = {
     getElementById: () => ({disabled: false, checked: false, addEventListener() {}}),
@@ -85,40 +112,41 @@ test('自动加载探测端口期间忽略手动发送，不会中断自动队�
       addEventListener: (_, callback) => listeners.set('send', callback),
     }],
   };
-  globalThis.fetch = async url => {
-    requested.push(url);
-    if (url === '/api/jbstate')
-      return new Promise(resolve => { finishProbe = resolve; });
-    return {ok: false, status: 503};
-  };
-  initializePayloadSender({}, {});
+  initializePayloadSender({
+    malloc() { return {add32() { return this; }, backing: {set() {}}}; },
+    write1() {}, write2() {}, write4() {},
+  }, {
+    syscall() { return gate.then(() => ({low: -1})); },
+  });
   const auto = runAutoChain();
   listeners.get('send')();
-  assert.equal(requested.filter(url => url.startsWith('payloads/')).length, 0);
-  finishProbe({json: async () => ({ports: {}})});
+  assert.match(messages.join('\n'), /自动加载正在运行/);
+  release();
   await auto;
-  assert.equal(requested.filter(url => url.startsWith('payloads/')).length, 1);
-  assert.doesNotMatch(messages.join('\n'), /已有 payload 正在发送/);
 });
 
 test('首页保留脚本依赖的 DOM，且不包含 FTP 中转页', () => {
   const home = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
   const css = readFileSync(new URL('./ui.css', import.meta.url), 'utf8');
   const homeIds = [
-    'st-device', 'st-jb', 'st-ldr', 'exploit-status', 'status-title',
+    'exploit-status', 'status-title',
     'status-body', 'status-actions', 'rail', 'stage-webkit', 'stage-kernel',
     'stage-elfldr', 'console', 'act-payloads', 'btn-runplan', 'btn-resetplan',
-    'autorun-opt', 'plan-mode', 'elf-rows', 'pcsend', 'pcsend-cmd', 'pcsend-ps',
-    'service-panplay', 'qr-panplay', 'url-panplay',
-    'service-websrv', 'qr-websrv', 'url-websrv',
+    'autorun-opt', 'plan-mode', 'elf-rows',
   ];
   assert.match(home, /href="\.\/ui\.css"/);
   const actual = [...home.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]);
   assert.equal(new Set(actual).size, actual.length, '静态 id 不得重复');
   for (const id of homeIds) assert.ok(actual.includes(id), `缺少 #${id}`);
   assert.equal(existsSync(new URL('./ftp.html', import.meta.url)), false);
-  assert.doesNotMatch(home, /ftp\.html/);
+  assert.doesNotMatch(home, /矩阵端口|正在扫描主机|扫描局域网|pcsend|本机网卡|act-services|qr-modal|扫码服务|statebar|终端节点|矩阵状态/);
+  assert.doesNotMatch(css, /\.pcsend|\.qr-modal|\.site-nav|#act-services/);
+  assert.equal(existsSync(new URL('./src/qrcode.js', import.meta.url)), false);
+  assert.doesNotMatch(readFileSync(new URL('./src/site.js', import.meta.url), 'utf8'), /\/api\/jbstate|\/api\/elfsend/);
   assert.doesNotMatch(readFileSync(new URL('./serve.py', import.meta.url), 'utf8'), /ftp_relay/);
+  assert.match(css, /#body-exploit\.exploit-row\s*\{[^}]*grid-template-columns:\s*30%\s+minmax\(0,\s*1fr\)/);
+  assert.match(css, /\.home-workspace\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/);
+  assert.match(css, /body\.flow-done \.home-workspace\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/);
   assert.match(css, /\[hidden\].*display: none !important/);
   assert.match(css, /#console div:last-child:not\(\.e\):not\(\.g\)/);
 });
@@ -128,46 +156,13 @@ test('新版工作区保留键盘入口、表单标签与日志语义', () => {
   assert.match(html, /class="skip-link" href="#workspace"/);
   assert.match(html, /<main id="workspace"[^>]*tabindex="-1"/);
   assert.match(html, /id="console" role="log" aria-live="off"/);
-  assert.equal((html.match(/aria-current="page"/g) || []).length, 1);
+  assert.equal((html.match(/aria-current="page"/g) || []).length, 0);
   const css = readFileSync(new URL('./ui.css', import.meta.url), 'utf8');
   assert.match(css, /prefers-reduced-motion: reduce/);
   assert.doesNotMatch(css, /@import|url\(["']?https?:/);
 });
 
-test('部分在线时只推荐确实在线的服务', () => {
-  const file = readFileSync(new URL('./src/site.js', import.meta.url), 'utf8');
-  const source = file.slice(0, file.lastIndexOf('\nboot().catch('))
-    .replace(/^import .* from ['"]\.\/elfplan\.js['"];/m, '');
-  const sandbox = {
-    navigator: {userAgent: 'PlayStation 5'},
-    window: {firmware: {rejection: () => null}, fw_str: '13.60'},
-    document: {getElementById: () => ({addEventListener() {}, hidden: false})},
-    loadPlan: () => ({order: [], off: new Set()}),
-    savePlan() {}, resetPlan() {}, itemById() {}, formatSize() {},
-  };
-  runInNewContext(source + `
-    refreshPills = () => {};
-    applyElfState = () => {};
-    updatePlanMode = () => {};
-    updatePcsend = () => {};
-    setBar = () => {};
-    setStatus = (_tone, _title, body) => { globalThis.bodyText = body; };
-    globalThis.renderPartial = enterPartial;
-  `, sandbox);
-  sandbox.renderPartial({ip: '192.168.1.2', ports: {'8080': true}});
-  assert.match(sandbox.bodyText, /href="http:\/\/192\.168\.1\.2:8080"/);
-  sandbox.renderPartial({ip: '192.168.1.2', ports: {'9021': true, '8080': false}});
-  assert.doesNotMatch(sandbox.bodyText, /:8080/);
-});
-
-test('离线二维码生成与全部流程完成后自动折叠并突出展示二维码', async () => {
-  const {renderQRSvg, encodeQRMatrix} = await import('./src/qrcode.js');
-  const svg = renderQRSvg('http://192.168.1.88:8080');
-  assert.match(svg, /^<svg class="qr-svg"/);
-  assert.match(svg, /<path d="M/);
-  const mat = encodeQRMatrix('http://192.168.1.88:8080');
-  assert.ok(mat.size >= 25);
-
+test('全部流程完成后自动折叠 01 和 02', async () => {
   const file = readFileSync(new URL('./src/site.js', import.meta.url), 'utf8');
   const source = file.slice(0, file.lastIndexOf('\nboot().catch('))
     .replace(/^import .* from ['"]\.\/elfplan\.js['"];/m, '');
@@ -221,7 +216,6 @@ test('离线二维码生成与全部流程完成后自动折叠并突出展示�
     savePlan() {}, resetPlan() {},
     itemById: (id) => ({id, name: id, file: id + '.elf', ver: '1.0', desc: '', src: '', size: 1024}),
     formatSize: () => '1 KB',
-    renderQRSvg,
   };
   runInNewContext(source, sandbox);
 
@@ -233,15 +227,11 @@ test('离线二维码生成与全部流程完成后自动折叠并突出展示�
     ports: {'9021': true, '8080': true},
   });
 
-  // 验证次要内容（Intro、01 破解详情、02 加载计划详情）均已自动折叠，且 body 标记为 flow-done
+  // 验证 01、02 已自动折叠，且 body 标记为 flow-done
   assert.equal(bodyClasses.has('flow-done'), true);
-  assert.equal(getEl('hero-intro').hidden, true);
   assert.equal(getEl('body-exploit').hidden, true);
   assert.equal(getEl('body-payloads').hidden, true);
   assert.equal(getEl('flow-complete-banner').hidden, false);
-
-  // 验证 websrv 访问地址与二维码均已按真实 PS5 IP 生成
-  assert.equal(getEl('url-websrv').textContent, 'http://192.168.1.88:8080');
-  assert.match(getEl('qr-websrv').innerHTML, /<svg class="qr-svg"/);
+  assert.equal(getEl('flow-banner-title').textContent, '组件加载已完成');
 });
 

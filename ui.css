@@ -50,7 +50,7 @@
   box-sizing: border-box;
 }
 
-[hidden], .hidden, #progress.hidden { display: none !important; }
+[hidden] { display: none !important; }
 
 html, body {
   min-height: 100%;
@@ -259,24 +259,6 @@ button.mini:disabled {
   box-shadow: none;
 }
 
-button.danger,
-button.risky {
-  background: var(--redpill-wash);
-  border-color: var(--redpill-edge);
-  color: #ff8da3;
-  text-shadow: 0 0 8px rgba(255, 42, 84, 0.35);
-  box-shadow: inset 0 0 10px rgba(255, 42, 84, 0.08);
-}
-
-button.danger:hover:not(:disabled),
-button.risky:hover:not(:disabled) {
-  background: var(--redpill);
-  border-color: #ff9eb0;
-  color: #090103;
-  text-shadow: none;
-  box-shadow: 0 0 20px rgba(255, 42, 84, 0.6);
-}
-
 button.mini {
   min-height: 32px;
   padding: 5px 11px;
@@ -415,139 +397,12 @@ input[type="checkbox"]:checked::after {
   font-weight: 700;
 }
 
-.site-nav {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.site-nav a {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  border: 1px solid var(--edge);
-  background: rgba(3, 12, 6, 0.8);
-  color: var(--matrix-mid);
-  font-size: 12.5px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  clip-path: polygon(0 0, calc(100% - 7px) 0, 100% 7px, 100% 100%, 7px 100%, 0 calc(100% - 7px));
-  transition: all 0.16s ease;
-}
-
-.site-nav a:hover {
-  border-color: var(--matrix-bright);
-  background: var(--matrix-wash);
-  color: var(--matrix-white);
-  text-decoration: none;
-}
-
-.site-nav a[aria-current="page"] {
-  background: rgba(0, 255, 65, 0.18);
-  border-color: var(--matrix-bright);
-  color: var(--matrix-white);
-  text-shadow: var(--glow-text);
-  box-shadow: 0 0 18px rgba(0, 255, 65, 0.22), inset 0 0 12px rgba(0, 255, 65, 0.12);
-}
-
-.site-nav a[aria-current="page"]::before {
-  content: "▸";
-  color: var(--matrix-bright);
-}
-
-/* ── 4-Cell Bio/Hardline Telemetry Bar (.statebar) ── */
-.statebar {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-  margin: 0 0 20px;
-}
-
-.statebar > div {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 4px;
-  padding: 12px 16px 12px 18px;
-  background: var(--bg-panel);
-  border: 1px solid var(--edge);
-  box-shadow: var(--glow-box);
-  backdrop-filter: blur(6px);
-  overflow: hidden;
-}
-
-.statebar > div::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  background: var(--matrix-bright);
-  box-shadow: 0 0 10px var(--matrix-bright);
-}
-
-.statebar > div::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 10px;
-  height: 10px;
-  border-top: 2px solid var(--matrix-bright);
-  border-right: 2px solid var(--matrix-bright);
-  opacity: 0.65;
-}
-
-.state-label {
-  color: var(--matrix-soft);
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
-.statebar b {
-  color: var(--matrix-white);
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.statebar b.ok {
-  color: var(--matrix-bright);
-  text-shadow: var(--glow-text);
-}
-
-.statebar b.warn,
-.statebar b.run {
-  color: var(--amber);
-  text-shadow: 0 0 10px rgba(255, 184, 0, 0.45);
-}
-
-.statebar b.err,
-.statebar b.bad {
-  color: var(--redpill);
-  text-shadow: 0 0 10px rgba(255, 42, 84, 0.5);
-}
-
 /* ── Main Workspace Grid & Flow-Done Collapsed Architecture ── */
 .home-workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 20px;
   align-items: start;
-}
-
-#act-services {
-  grid-column: 1 / -1;
 }
 
 /* Flow Complete Banner */
@@ -624,10 +479,10 @@ input[type="checkbox"]:checked::after {
   gap: 10px;
 }
 
-/* Flow-Done State: Equal-Width Alignment */
+/* Flow-Done State: 01、02 仍各占一整行 */
 body.flow-done .home-workspace {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 18px;
   align-items: stretch;
 }
@@ -635,13 +490,6 @@ body.flow-done .home-workspace {
 body.flow-done #flow-complete-banner {
   grid-column: 1 / -1;
   order: 1;
-}
-
-body.flow-done #act-services {
-  grid-column: 1 / -1;
-  order: 2;
-  border-color: var(--matrix-bright);
-  box-shadow: var(--glow-box-active);
 }
 
 body.flow-done #act-exploit {
@@ -652,9 +500,8 @@ body.flow-done #act-payloads {
   order: 4;
 }
 
-/* ── Tactical HUD Panels (.act & .panel) ── */
-.act,
-.panel {
+/* ── Tactical HUD Panels (.act) ── */
+.act {
   position: relative;
   min-width: 0;
   width: 100%;
@@ -688,8 +535,7 @@ body.flow-done #act-payloads {
   border-bottom: 0;
 }
 
-.act-head,
-.panel-head {
+.act-head {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -700,8 +546,7 @@ body.flow-done #act-payloads {
   position: relative;
 }
 
-.act-head::after,
-.panel-head::after {
+.act-head::after {
   content: "";
   position: absolute;
   left: 0;
@@ -730,8 +575,7 @@ body.flow-done #act-payloads {
   text-shadow: var(--glow-text);
 }
 
-.act-head h2,
-.panel-head h2 {
+.act-head h2 {
   margin: 0;
   color: var(--matrix-white);
   font-size: 16.5px;
@@ -768,7 +612,43 @@ body.flow-done #act-payloads {
   flex-shrink: 0;
 }
 
-/* ── Act 01: Breach Status Card & 3-Stage Pipeline ── */
+/* ── Act 01: 左 30%，右日志，两边同高 ── */
+#body-exploit.exploit-row {
+  display: grid;
+  grid-template-columns: 30% minmax(0, 1fr);
+  gap: 14px;
+  align-items: stretch;
+}
+
+.exploit-main {
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+#body-exploit .status-card {
+  flex: 1 1 auto;
+}
+
+#body-exploit .log-box {
+  margin-top: 0;
+  height: 100%;
+  min-height: 100%;
+}
+
+#body-exploit #exploit-log[open] {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+#body-exploit #console {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 168px;
+}
+
 .status-card {
   position: relative;
   margin: 0;
@@ -788,6 +668,7 @@ body.flow-done #act-payloads {
 }
 
 .status-card[data-state="running"],
+.status-card[data-state="ready"],
 .status-card[data-state="pc"] {
   border-color: var(--amber-edge);
   box-shadow: 0 0 18px rgba(255, 184, 0, 0.12), inset 0 0 20px rgba(255, 184, 0, 0.05);
@@ -832,6 +713,7 @@ body.flow-done #act-payloads {
 }
 
 .status-card[data-state="running"] .badge,
+.status-card[data-state="ready"] .badge,
 .status-card[data-state="pc"] .badge {
   border-color: var(--amber-edge);
   background: var(--amber-wash);
@@ -839,6 +721,7 @@ body.flow-done #act-payloads {
 }
 
 .status-card[data-state="running"] .badge .dot,
+.status-card[data-state="ready"] .badge .dot,
 .status-card[data-state="pc"] .badge .dot {
   background: var(--amber);
   box-shadow: 0 0 8px var(--amber);
@@ -1134,535 +1017,6 @@ label.Check {
   user-select: none;
 }
 
-.pcsend {
-  padding: 14px 16px;
-  background: var(--bg-terminal);
-  border-top: 1px solid var(--edge-faint);
-}
-
-.pcsend-row {
-  display: grid;
-  grid-template-columns: 125px minmax(0, 1fr);
-  align-items: center;
-  gap: 10px;
-  margin-top: 8px;
-}
-
-.pcsend-row:first-child {
-  margin-top: 0;
-}
-
-.pcsend-row > span {
-  color: var(--matrix-soft);
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
-.pcsend-row > code {
-  display: block;
-  padding: 8px 10px;
-  background: #010603;
-  border: 1px solid var(--edge-faint);
-  color: var(--matrix-bright);
-  font-size: 11px;
-  overflow-x: auto;
-  white-space: nowrap;
-}
-
-.dl-links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 14px;
-  margin-top: 12px;
-  padding-top: 10px;
-  border-top: 1px dashed var(--edge-faint);
-  font-size: 11.5px;
-}
-
-.dl-links a {
-  padding: 3px 9px;
-  background: rgba(0, 255, 65, 0.08);
-  border: 1px solid var(--edge);
-  color: var(--matrix-bright);
-}
-
-.dl-links a:hover {
-  background: var(--matrix-bright);
-  color: var(--bg-void);
-  text-decoration: none;
-}
-
-/* ── Act 03: Hardline Uplink QR Matrix (#act-services) ── */
-.qr-toolbar {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 14px 16px;
-  margin-bottom: 18px;
-  background: var(--bg-raised);
-  border: 1px solid var(--edge);
-  box-shadow: inset 0 0 18px rgba(0, 255, 65, 0.04);
-}
-
-.qr-toolbar-top {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.qr-ip-group {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-}
-
-.qr-ip-label {
-  color: var(--matrix-bright);
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.qr-ip-input {
-  width: 175px;
-  min-height: 36px;
-  padding: 5px 12px;
-  border: 1px solid var(--matrix-bright);
-  background: var(--bg-terminal);
-  color: var(--matrix-white);
-  font: 700 13.5px/1.2 var(--font-code);
-  box-shadow: inset 0 0 10px rgba(0, 255, 65, 0.12);
-}
-
-.qr-ip-input:focus {
-  outline: 1px solid var(--matrix-white);
-  box-shadow: 0 0 14px rgba(0, 255, 65, 0.45);
-}
-
-.qr-ip-hint {
-  padding: 3px 8px;
-  font-size: 11.5px;
-  font-weight: 700;
-  color: var(--matrix-soft);
-}
-
-.qr-ip-hint:empty {
-  display: none;
-}
-
-.qr-ip-hint[data-tone="ok"] {
-  color: var(--matrix-bright);
-  background: var(--matrix-wash);
-  border: 1px solid var(--edge);
-  text-shadow: var(--glow-text);
-}
-
-.qr-ip-hint[data-tone="seen"] {
-  color: var(--amber);
-  background: var(--amber-wash);
-  border: 1px solid var(--amber-edge);
-}
-
-.qr-toolbar-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-/* Candidate IP Radar Chips */
-.qr-candidates-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding-top: 12px;
-  border-top: 1px dashed var(--edge);
-}
-
-.qr-chip-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 12px;
-}
-
-.qr-chip-label {
-  flex-shrink: 0;
-  min-width: 76px;
-  color: var(--matrix-soft);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.qr-chip-list {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-
-button.ip-chip {
-  min-height: 32px;
-  padding: 4px 12px;
-  background: var(--bg-terminal);
-  border: 1px solid var(--edge);
-  color: var(--matrix-mid);
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: none;
-  box-shadow: none;
-}
-
-button.ip-chip:hover:not(:disabled) {
-  background: var(--matrix-wash);
-  border-color: var(--matrix-bright);
-  color: var(--matrix-white);
-  transform: none;
-}
-
-button.ip-chip.is-active {
-  background: var(--matrix-wash-strong);
-  border-color: var(--matrix-bright);
-  color: var(--matrix-white);
-  box-shadow: 0 0 14px rgba(0, 255, 65, 0.28);
-}
-
-.ip-chip .chip-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--matrix-muted);
-  flex-shrink: 0;
-}
-
-.ip-chip .chip-dot[data-dot="online"] {
-  background: var(--matrix-bright);
-  box-shadow: 0 0 8px var(--matrix-bright);
-}
-
-.ip-chip .chip-dot[data-dot="seen"] {
-  background: var(--amber);
-  box-shadow: 0 0 8px var(--amber);
-}
-
-.ip-chip .chip-ip {
-  color: var(--matrix-white);
-  font-weight: 700;
-}
-
-.ip-chip.is-active .chip-ip {
-  color: var(--matrix-bright);
-  text-shadow: var(--glow-text);
-}
-
-.ip-chip .chip-meta {
-  color: var(--matrix-soft);
-  font-size: 11px;
-}
-
-/* Equal-Height Hardline Service Pods (.qr-cards) */
-.qr-cards {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
-  align-items: stretch;
-}
-
-.qr-card {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 18px 20px;
-  background:
-    linear-gradient(var(--matrix-bright), var(--matrix-bright)) top left / 10px 2px no-repeat,
-    linear-gradient(var(--matrix-bright), var(--matrix-bright)) top left / 2px 10px no-repeat,
-    linear-gradient(var(--matrix-bright), var(--matrix-bright)) bottom right / 10px 2px no-repeat,
-    linear-gradient(var(--matrix-bright), var(--matrix-bright)) bottom right / 2px 10px no-repeat,
-    var(--bg-raised);
-  border: 1px solid var(--edge);
-  min-width: 0;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.qr-card:hover {
-  border-color: var(--edge-strong);
-  box-shadow: var(--glow-box-active);
-}
-
-.qr-card[data-online="1"] {
-  border-color: var(--matrix-bright);
-  background:
-    linear-gradient(180deg, rgba(0, 255, 65, 0.1) 0%, rgba(4, 16, 8, 0.94) 45%);
-  box-shadow: var(--glow-box-active);
-}
-
-.qr-card-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  min-height: 28px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--edge-faint);
-}
-
-.qr-card-top h3 {
-  margin: 0;
-  color: var(--matrix-white);
-  font-size: 15px;
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  text-shadow: var(--glow-text);
-}
-
-.service-badge {
-  flex-shrink: 0;
-  padding: 3px 9px;
-  font-size: 11px;
-  font-weight: 700;
-  border: 1px solid var(--edge-faint);
-  background: var(--bg-terminal);
-  color: var(--matrix-soft);
-}
-
-.service-badge[data-up="on"] {
-  color: var(--matrix-bright);
-  background: var(--matrix-wash-strong);
-  border-color: var(--matrix-bright);
-  text-shadow: var(--glow-text);
-  box-shadow: 0 0 10px rgba(0, 255, 65, 0.22);
-}
-
-.service-badge[data-up="off"] {
-  color: var(--amber);
-  background: var(--amber-wash);
-  border-color: var(--amber-edge);
-}
-
-/* Phosphor QR Targeting Chamber */
-.qr-box {
-  position: relative;
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 18px 14px;
-  background:
-    radial-gradient(circle at 50% 50%, rgba(0, 255, 65, 0.12), transparent 72%),
-    var(--bg-terminal);
-  border: 1px solid var(--edge-faint);
-  cursor: pointer;
-  overflow: hidden;
-  transition: border-color 0.18s ease;
-}
-
-.qr-box:hover {
-  border-color: var(--matrix-bright);
-}
-
-/* Animated Matrix Laser Scanline over QR Chamber */
-.qr-box::after {
-  content: "";
-  position: absolute;
-  left: 8%;
-  right: 8%;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, var(--matrix-bright), transparent);
-  box-shadow: 0 0 12px var(--matrix-bright);
-  opacity: 0.55;
-  animation: qr-laser-scan 3.6s ease-in-out infinite;
-  pointer-events: none;
-}
-
-@keyframes qr-laser-scan {
-  0%, 100% { top: 14px; opacity: 0.2; }
-  50% { top: calc(100% - 36px); opacity: 0.75; }
-}
-
-.qr-canvas {
-  position: relative;
-  width: 178px;
-  height: 178px;
-  padding: 8px;
-  background: #d8ffe2;
-  border: 2px solid var(--matrix-bright);
-  box-shadow: 0 0 24px rgba(0, 255, 65, 0.32);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-body.flow-done .qr-canvas {
-  width: 194px;
-  height: 194px;
-}
-
-.qr-canvas .qr-svg {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-
-.qr-caption {
-  margin-top: 10px;
-  color: var(--matrix-mid);
-  font-size: 11.5px;
-  text-align: center;
-}
-
-.qr-url-bar {
-  padding: 8px 10px;
-  background: var(--bg-terminal);
-  border: 1px solid var(--edge-faint);
-  text-align: center;
-  min-width: 0;
-}
-
-.qr-url-code {
-  display: block;
-  color: var(--matrix-bright);
-  font-size: 11.5px;
-  font-weight: 700;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.qr-card-actions {
-  display: grid;
-  grid-template-columns: minmax(0, 1.25fr) auto auto;
-  align-items: center;
-  gap: 8px;
-}
-
-.btn-link.primary-link {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 32px;
-  padding: 5px 12px;
-  background: rgba(0, 255, 65, 0.16);
-  border: 1px solid var(--matrix-bright);
-  color: var(--matrix-white);
-  font-size: 11.5px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  text-decoration: none;
-  white-space: nowrap;
-  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
-  transition: all 0.15s ease;
-}
-
-.btn-link.primary-link:hover {
-  background: var(--matrix-bright);
-  color: var(--bg-void);
-  text-shadow: none;
-  box-shadow: 0 0 18px rgba(0, 255, 65, 0.55);
-  text-decoration: none;
-}
-
-/* ── Fullscreen QR Construct Modal ── */
-.qr-modal {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-}
-
-.qr-modal-backdrop {
-  position: absolute;
-  inset: 0;
-  background: rgba(1, 6, 3, 0.88);
-  backdrop-filter: blur(6px);
-}
-
-.qr-modal-dialog {
-  position: relative;
-  z-index: 1;
-  width: min(460px, 100%);
-  padding: 24px;
-  background: var(--bg-panel-solid);
-  border: 1px solid var(--matrix-bright);
-  box-shadow: 0 0 50px rgba(0, 255, 65, 0.35), inset 0 0 24px rgba(0, 255, 65, 0.08);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: 14px;
-}
-
-.qr-modal-head {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--edge-faint);
-}
-
-.qr-modal-head h3 {
-  margin: 0;
-  color: var(--matrix-white);
-  font-size: 16.5px;
-  font-weight: 800;
-  text-shadow: var(--glow-text);
-}
-
-.qr-modal-svg {
-  width: 260px;
-  height: 260px;
-  padding: 12px;
-  background: #d8ffe2;
-  border: 2px solid var(--matrix-bright);
-  box-shadow: 0 0 30px rgba(0, 255, 65, 0.4);
-}
-
-.qr-modal-svg .qr-svg {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-
-.qr-modal-url {
-  padding: 6px 12px;
-  background: var(--bg-terminal);
-  border: 1px solid var(--edge);
-  color: var(--matrix-bright);
-  font-size: 12.5px;
-  font-weight: 700;
-  overflow-wrap: anywhere;
-}
-
-.qr-modal-desc {
-  margin: 0;
-  color: var(--matrix-mid);
-  font-size: 12.5px;
-}
-
-.qr-modal-foot {
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-  margin-top: 4px;
-}
-
 /* ── Responsive Breakpoints ── */
 @media (max-width: 1120px) {
   .matrix-hud-meta {
@@ -1672,21 +1026,18 @@ body.flow-done .qr-canvas {
   body.flow-done .home-workspace {
     grid-template-columns: 1fr;
   }
-  .qr-cards {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 @media (max-width: 780px) {
   body.page-home {
     padding: 0 16px 28px;
   }
-  .statebar {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
   .rail,
-  .qr-cards {
+  #body-exploit.exploit-row {
     grid-template-columns: 1fr;
+  }
+  #body-exploit #console {
+    min-height: 132px;
   }
   .elf-row {
     grid-template-columns: 24px 18px minmax(0, 1fr) auto;
@@ -1695,9 +1046,6 @@ body.flow-done .qr-canvas {
   .elf-row .send-one {
     grid-column: 3 / 5;
     justify-self: start;
-  }
-  .pcsend-row {
-    grid-template-columns: 1fr;
   }
 }
 

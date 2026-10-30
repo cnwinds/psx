@@ -4,8 +4,6 @@
 //
 // 默认一键链：kstuff → ftpsrv → panplay（panplay 固定队尾）；ShadowMountPlus / websrv 可选。
 
-export { encodeQRMatrix, renderQRSvg } from "./qrcode.js";
-
 export const ELF_ITEMS = [
   {
     id: "kstuff",
@@ -24,7 +22,6 @@ export const ELF_ITEMS = [
     name: "ftpsrv",
     ver: "0.21.1",
     role: ":2121",
-    ports: ["2121"],
     desc: "FTP 文件服务 (:2121)，FileZilla 等客户端可连",
     src: "https://github.com/ps5-payload-dev/ftpsrv",
     size: 191864,
@@ -36,7 +33,6 @@ export const ELF_ITEMS = [
     name: "盘游 panplay",
     ver: "0.16.4",
     role: ":8734",
-    ports: ["8734"],
     desc: "百度网盘直装（:8734）；与 ShadowMountPlus 勿同时勾选",
     src: "https://github.com/cnwinds/pan-play",
     size: 6720416,
@@ -59,42 +55,12 @@ export const ELF_ITEMS = [
     name: "websrv",
     ver: "0.34",
     role: ":8080",
-    ports: ["8080"],
     desc: "网页发送器 (:8080)，手机扫码追发任意 payload",
     src: "https://github.com/ps5-payload-dev/websrv",
     size: 1597864,
     on: false,
   },
 ];
-
-/** 端口存活探测文案；payload_loader 验证日志的唯一来源（勿在别处重复维护端口表）。 */
-const ELF_PORT_LABELS = {
-  ftpsrv: {
-    2121: { name: "ftpsrv FTP", hint: "在幕二勾选 ftpsrv 发送" },
-  },
-  panplay: {
-    8734: { name: "panplay（盘游 / 百度网盘）", hint: "在幕二勾选 panplay 发送" },
-  },
-  websrv: {
-    8080: { name: "websrv（网页发送器）", hint: "在幕二勾选 websrv 发送" },
-  },
-};
-
-export function probePortInfo() {
-  const out = {
-    9021: { name: "elfldr（payload 通道）", hint: "已退出，需重启后重跑破解流程" },
-  };
-  for (const item of ELF_ITEMS) {
-    const labels = ELF_PORT_LABELS[item.id];
-    if (!labels || !item.ports) continue;
-    for (const port of item.ports) {
-      const key = String(port);
-      const meta = labels[port];
-      if (meta) out[key] = meta;
-    }
-  }
-  return out;
-}
 
 const PLAN_KEY = "psx.elfplan.v1";
 

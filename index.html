@@ -24,34 +24,9 @@
   </div>
   <div class="matrix-hud-meta" aria-hidden="true">
     <span>SYS.KERNEL <b>RELAPSE_UAF</b></span>
-    <span>HARDLINE <b>:9021 / :8080</b></span>
+    <span>HARDLINE <b>:9021</b></span>
   </div>
-  <nav class="site-nav" aria-label="主导航">
-    <a href="./index.html" aria-current="page">[01] 矩阵控制台</a>
-  </nav>
 </header>
-
-<section id="hero-intro" hidden></section>
-
-<!-- 顶部四格实时遥测栏 -->
-<section class="statebar" aria-label="主机状态">
-  <div>
-    <span class="state-label">0x00 // 终端节点</span>
-    <b id="st-device">检测中…</b>
-  </div>
-  <div>
-    <span class="state-label">0x01 // 矩阵状态</span>
-    <b id="st-jb">检测中…</b>
-  </div>
-  <div>
-    <span class="state-label">0x02 // ELFLDR (:9021)</span>
-    <b id="st-ldr">—</b>
-  </div>
-  <div>
-    <span class="state-label">0x03 // 节点 IP</span>
-    <b id="st-ip">待识别</b>
-  </div>
-</section>
 
 <main id="workspace" class="workspace home-workspace" tabindex="-1">
 
@@ -59,8 +34,8 @@
   <section id="flow-complete-banner" class="flow-banner" hidden aria-live="polite">
     <div class="flow-banner-main">
       <i class="pulse-dot" aria-hidden="true"></i>
-      <h2 id="flow-banner-title">服务已就绪，请用手机扫码访问</h2>
-      <span id="flow-banner-desc" class="flow-banner-sub">同一 Wi-Fi 扫码直连</span>
+      <h2 id="flow-banner-title">组件加载已完成</h2>
+      <span id="flow-banner-desc" class="flow-banner-sub">可展开详情查看日志与加载列表</span>
     </div>
     <div class="flow-banner-actions">
       <button type="button" id="btn-toggle-fold" class="ghost mini">展开详情 ▾</button>
@@ -76,30 +51,32 @@
       <button type="button" id="btn-fold-exploit" class="ghost mini act-fold-btn" aria-expanded="true">收起 ▴</button>
     </header>
 
-    <div class="act-body" id="body-exploit">
-      <div id="exploit-status" class="status-card" data-state="checking">
-        <div class="badge"><span class="dot"></span><span id="status-badge">检测中</span></div>
-        <h3 id="status-title">正在扫描主机矩阵端口…</h3>
-        <p id="status-body">探测 9021 / 2121 / 8734 / 8080 端口…</p>
-        <div id="status-actions" class="actions" hidden></div>
+    <div class="act-body exploit-row" id="body-exploit">
+      <div class="exploit-main">
+        <div id="exploit-status" class="status-card" data-state="checking">
+          <div class="badge"><span class="dot"></span><span id="status-badge">检测中</span></div>
+          <h3 id="status-title">正在初始化…</h3>
+          <p id="status-body">打开页面即开始提权，成功后自动加载组件</p>
+          <div id="status-actions" class="actions" hidden></div>
+        </div>
+
+        <ol id="rail" class="rail" hidden aria-label="提权进度">
+          <li id="stage-webkit">
+            <span class="stage-num">01 · WEBKIT</span>
+            <b>读写原语 &amp; ROP</b>
+          </li>
+          <li id="stage-kernel">
+            <span class="stage-num">02 · KERNEL</span>
+            <b>内核提权</b>
+          </li>
+          <li id="stage-elfldr">
+            <span class="stage-num">03 · ELFLDR</span>
+            <b>监听 :9021</b>
+          </li>
+        </ol>
       </div>
 
-      <ol id="rail" class="rail" hidden aria-label="提权进度">
-        <li id="stage-webkit">
-          <span class="stage-num">01 · WEBKIT</span>
-          <b>读写原语 &amp; ROP</b>
-        </li>
-        <li id="stage-kernel">
-          <span class="stage-num">02 · KERNEL</span>
-          <b>内核提权</b>
-        </li>
-        <li id="stage-elfldr">
-          <span class="stage-num">03 · ELFLDR</span>
-          <b>监听 :9021</b>
-        </li>
-      </ol>
-
-      <details id="exploit-log" class="log-box">
+      <details id="exploit-log" class="log-box" open>
         <summary>TTY0 // 内核运行日志</summary>
         <div id="console" role="log" aria-live="off"></div>
       </details>
@@ -127,137 +104,10 @@
           <span>自动加载</span>
         </label>
       </div>
-
-      <details id="pcsend" class="log-box pcsend-details" hidden>
-        <summary>CLI // 命令行推送 (:9021) &amp; 离线载荷</summary>
-        <div class="pcsend">
-          <div class="pcsend-row">
-            <span>Linux / macOS</span>
-            <code id="pcsend-cmd"></code>
-          </div>
-          <div class="pcsend-row">
-            <span>PowerShell</span>
-            <code id="pcsend-ps"></code>
-          </div>
-          <div class="dl-links">
-            <a href="payloads/kstuff.elf" download>kstuff.elf</a>
-            <a href="payloads/ftpsrv.elf" download>ftpsrv.elf</a>
-            <a href="payloads/panplay.elf" download>panplay.elf</a>
-            <a href="payloads/shadowmountplus.elf" download>shadowmountplus.elf</a>
-            <a href="payloads/websrv.elf" download>websrv.elf</a>
-            <a href="payloads/elfldr-ps5-1360.elf" download>elfldr.elf</a>
-          </div>
-        </div>
-      </details>
-    </div>
-  </section>
-
-  <!-- 03：手机扫码服务 -->
-  <section class="act tools-section" id="act-services" aria-labelledby="head-services">
-    <header class="act-head">
-      <span class="act-num" id="services-num">03</span>
-      <h2 id="head-services">扫码服务 // HARDLINE UPLINK</h2>
-      <span class="sub">手机与 PS5 连接同一 Wi-Fi 即可扫码直连</span>
-    </header>
-
-    <!-- 独立工具栏：PS5 IP 与候选设备切换 -->
-    <div class="qr-toolbar">
-      <div class="qr-toolbar-top">
-        <div class="qr-ip-group">
-          <label for="qr-ps5-ip" class="qr-ip-label">TARGET_IP // PS5</label>
-          <input type="text" id="qr-ps5-ip" class="qr-ip-input" value="192.168.1.100" placeholder="192.168.1.100" spellcheck="false" autocomplete="off">
-          <span id="qr-ip-hint" class="qr-ip-hint"></span>
-        </div>
-        <div class="qr-toolbar-actions">
-          <button type="button" id="btn-scan-lan" class="ghost mini">扫描局域网</button>
-          <button type="button" id="btn-probe-ports" class="ghost mini">刷新端口</button>
-          <button type="button" id="btn-fold-manual" class="ghost mini">折叠流程</button>
-        </div>
-      </div>
-
-      <!-- 候选 IP 选择栏 -->
-      <div id="qr-candidates-panel" class="qr-candidates-panel" hidden>
-        <div class="qr-chip-row" id="qr-ps5-candidates-row" hidden>
-          <span class="qr-chip-label">候选 PS5</span>
-          <div class="qr-chip-list" id="qr-ps5-chips" role="radiogroup" aria-label="PS5 候选 IP"></div>
-        </div>
-        <div class="qr-chip-row" id="qr-host-candidates-row" hidden>
-          <span class="qr-chip-label">本机网卡</span>
-          <div class="qr-chip-list" id="qr-host-chips" role="radiogroup" aria-label="宿主机网卡 IP"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 核心服务二维码卡片 -->
-    <div class="tools qr-cards">
-
-      <!-- 服务 1：panplay (:8734) -->
-      <article class="tool-box qr-card" id="service-panplay" data-service="panplay">
-        <div class="qr-card-top">
-          <h3>盘游 panplay</h3>
-          <span class="service-badge" id="badge-panplay" data-up="wait">待检测 :8734</span>
-        </div>
-
-        <div class="qr-box" data-zoom-qr="panplay" title="点击放大二维码">
-          <div class="qr-canvas" id="qr-panplay" aria-label="panplay 二维码"></div>
-          <span class="qr-caption">百度网盘直装 · 扫码登录</span>
-        </div>
-
-        <div class="qr-url-bar">
-          <code class="qr-url-code" id="url-panplay">http://192.168.1.100:8734</code>
-        </div>
-
-        <div class="qr-card-actions">
-          <a id="link-panplay" class="btn-link primary-link" href="http://192.168.1.100:8734" target="_blank" rel="noreferrer">打开 :8734 ↗</a>
-          <button type="button" class="ghost mini" data-copy-target="url-panplay">复制</button>
-          <button type="button" class="ghost mini" data-zoom-qr="panplay">放大</button>
-        </div>
-      </article>
-
-      <!-- 服务 2：websrv (:8080) -->
-      <article class="tool-box qr-card" id="service-websrv" data-service="websrv">
-        <div class="qr-card-top">
-          <h3>websrv 网页发送器</h3>
-          <span class="service-badge" id="badge-websrv" data-up="wait">待检测 :8080</span>
-        </div>
-
-        <div class="qr-box" data-zoom-qr="websrv" title="点击放大二维码">
-          <div class="qr-canvas" id="qr-websrv" aria-label="websrv 二维码"></div>
-          <span class="qr-caption">手机扫码向 PS5 追发 payload</span>
-        </div>
-
-        <div class="qr-url-bar">
-          <code class="qr-url-code" id="url-websrv">http://192.168.1.100:8080</code>
-        </div>
-
-        <div class="qr-card-actions">
-          <a id="link-websrv" class="btn-link primary-link" href="http://192.168.1.100:8080" target="_blank" rel="noreferrer">打开 :8080 ↗</a>
-          <button type="button" class="ghost mini" data-copy-target="url-websrv">复制</button>
-          <button type="button" class="ghost mini" data-zoom-qr="websrv">放大</button>
-        </div>
-      </article>
     </div>
   </section>
 
 </main>
-
-<!-- 二维码全屏放大弹窗 -->
-<div id="qr-modal" class="qr-modal" hidden role="dialog" aria-modal="true" aria-labelledby="qr-modal-title">
-  <div class="qr-modal-backdrop" data-close-modal="1"></div>
-  <div class="qr-modal-dialog">
-    <header class="qr-modal-head">
-      <h3 id="qr-modal-title">服务二维码</h3>
-      <button type="button" id="qr-modal-close" class="ghost mini" data-close-modal="1">✕</button>
-    </header>
-    <div class="qr-modal-svg" id="qr-modal-svg"></div>
-    <code class="qr-modal-url" id="qr-modal-url"></code>
-    <p class="qr-modal-desc" id="qr-modal-desc"></p>
-    <div class="qr-modal-foot">
-      <a id="qr-modal-open" class="btn-link primary-link" href="#" target="_blank" rel="noreferrer">直接打开 ↗</a>
-      <button type="button" class="ghost" data-close-modal="1">关闭</button>
-    </div>
-  </div>
-</div>
 
 </div>
 <script src="./src/firmware.js"></script>

@@ -1,13 +1,16 @@
-// 页面内直发 payload：漏洞链跑通后 elfldr 监听 127.0.0.1:9021，
-// 通过 ROP 驱动的 TCP 连接把 ELF 逐个推过去。发送哪些、按什么顺序，
-// 全部由 elfplan（幕二的勾选与排序）决定。
+// 页面内加载 payload：漏洞链跑通后 elfldr 监听 127.0.0.1:9021。
+// 浏览器不把 ELF 读进内存，而是用 ROP socket 向本机 9021 发
+// GET /?uri=<本站 ELF 的绝对地址>。elfldr 自己下载并执行。
+// 这样页面可以停在 HTTPS（用户指南），不必再 fetch('http://127.0.0.1:9021')。
+// 发送哪些、按什么顺序，全部由 elfplan（幕二的勾选与排序）决定。
 
-import { loadPlan, itemById, itemByFile, probePortInfo } from "./elfplan.js";
+import { loadPlan, itemById, itemByFile } from "./elfplan.js";
 
 const AF_INET = 2;
 const SOCK_STREAM = 1;
 const ELFLDR_PORT = 9021;
 const AUTO_STEP_DELAY_MS = 4000;
+const REPLY_MAX = 8192;
 
 let runtime = null;
 let running = false;
@@ -37,20 +40,47 @@ function enabledChain() {
     .map((item) => ({ id: item.id, file: item.file, name: item.name }));
 }
 
-async function loadIntoMemory(file) {
-  const response = await fetch("payloads/" + file + "?v=" + Date.now());
-  if (!response.ok) throw new Error(file + " 下载失败 HTTP " + response.status);
-  const bytes = new Uint8Array(await response.arrayBuffer());
+function isPrivateIpv4(hostname) {
+  const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(hostname);
+  if (!m) return false;
+  const a = Number(m[1]);
+  const b = Number(m[2]);
+  if ([a, b, Number(m[3]), Number(m[4])].some((n) => n > 255)) return false;
+  if (a === 10 || a === 127) return true;
+  if (a === 192 && b === 168) return true;
+  if (a === 172 && b >= 16 && b <= 31) return true;
+  return false;
+}
 
-  const magic = (bytes[0] | (bytes[1] << 8) | (bytes[2] << 16) | (bytes[3] << 24)) >>> 0;
-  if (magic !== 0x464c457f) throw new Error(file + " 不是有效的 ELF 文件");
+// 自签的用户指南站 / 内网 HTTPS 同时在 80 提供同一份文件。
+// elfldr 自己下载，用明文 HTTP 避开它不认浏览器已放行的自签证书。
+// 公网 HTTPS（如 GitHub Pages）保持原样。
+function preferPlainHttp(page) {
+  const defaultHttps = page.protocol === "https:" && (page.port === "" || page.port === "443");
+  if (!defaultHttps) return false;
+  return page.hostname === "manuals.playstation.net" || isPrivateIpv4(page.hostname);
+}
 
-  const buffer = runtime.p.malloc(bytes.length + 0x10, 1);
-  buffer.backing.set(bytes);
-  if (runtime.p.read4(buffer) >>> 0 !== 0x464c457f)
-    throw new Error(file + " 内存副本校验失败");
+export function payloadFetchUrl(file, pageHref) {
+  if (!/^[A-Za-z0-9._-]+$/.test(file)) throw new Error("非法 payload 文件名");
+  const page = new URL(pageHref);
+  if (!page.pathname.endsWith("/") && !/\.html?$/i.test(page.pathname)) page.pathname += "/";
+  const same = new URL("payloads/" + file, page);
+  same.search = "";
+  same.hash = "";
+  if (preferPlainHttp(page)) return "http://" + page.hostname + same.pathname;
+  return same.href;
+}
 
-  return { ptr: buffer, size: bytes.length };
+export function elfldrGetRequest(payloadUrl) {
+  return "GET /?uri=" + encodeURIComponent(payloadUrl) + " HTTP/1.1\r\n" +
+    "Host: 127.0.0.1:" + ELFLDR_PORT + "\r\n" +
+    "Connection: close\r\n\r\n";
+}
+
+function pageHref() {
+  if (typeof location !== "undefined" && location && location.href) return location.href;
+  throw new Error("无法确定本站地址");
 }
 
 // elfldr 打印"监听中"与套接字真正就绪之间存在竞态（kstuff 是第一个连接，
@@ -74,9 +104,31 @@ async function connectElfldr(addr) {
   }
 }
 
-async function sendToElfldr(ptr, size) {
+function writeAscii(ptr, text) {
+  const bytes = new Uint8Array(text.length);
+  for (let i = 0; i < text.length; i++) bytes[i] = text.charCodeAt(i) & 0xff;
+  if (!ptr.backing || typeof ptr.backing.set !== "function")
+    throw new Error("发送缓冲区不可写");
+  ptr.backing.set(bytes);
+}
+
+function readAscii(ptr, length) {
+  const backing = ptr.backing;
+  if (!backing) throw new Error("无法读取 elfldr 响应");
+  let text = "";
+  const n = Math.min(length, backing.length);
+  for (let i = 0; i < n; i++) text += String.fromCharCode(backing[i]);
+  return text;
+}
+
+function replyRejected(text) {
+  return /Error reading|Unknown payload|Error spawning/i.test(text);
+}
+
+async function sendUriToElfldr(payloadUrl) {
   const p = runtime.p;
   const chain = runtime.chain;
+  const request = elfldrGetRequest(payloadUrl);
 
   // sockaddr_in: { len: 0x10, family: AF_INET, port: htons(9021), addr: htonl(127.0.0.1) }
   const addr = p.malloc(0x10, 1);
@@ -86,17 +138,37 @@ async function sendToElfldr(ptr, size) {
   p.write2(addr.add32(0x2), ((ELFLDR_PORT & 0xff) << 8) | ((ELFLDR_PORT >> 8) & 0xff));
   p.write4(addr.add32(0x4), (127) | (0 << 8) | (0 << 16) | (1 << 24));
 
-  const fd = await connectElfldr(addr);
+  const reqBuf = p.malloc(request.length + 1, 1);
+  writeAscii(reqBuf, request);
+  const replyBuf = p.malloc(0x400, 1);
 
+  const fd = await connectElfldr(addr);
   try {
     let sent = 0;
-    while (sent < size) {
-      const written = (await chain.syscall(SYS_WRITE, fd, ptr.add32(sent), size - sent)).low | 0;
+    while (sent < request.length) {
+      const written = (await chain.syscall(SYS_WRITE, fd, reqBuf.add32(sent), request.length - sent)).low | 0;
       if (written < 0) throw new Error("write() 失败 (" + written + ")");
       if (written === 0) throw new Error("write() 返回 0，连接被对端关闭");
       sent += written;
-      log("  已发送 " + sent + " / " + size + " 字节");
     }
+    log("  已通知 elfldr 下载，等待它拉取并启动…");
+
+    let reply = "";
+    for (;;) {
+      const n = (await chain.syscall(SYS_READ, fd, replyBuf, 0x400)).low | 0;
+      if (n < 0) {
+        if (reply) break;
+        throw new Error("read() 失败 (" + n + ")");
+      }
+      if (n === 0) break;
+      reply += readAscii(replyBuf, n);
+      if (reply.length >= REPLY_MAX) break;
+    }
+    const brief = reply.replace(/\s+/g, " ").trim().slice(0, 180);
+    if (!reply.trim()) throw new Error("elfldr 没有返回结果");
+    if (replyRejected(reply) || !/HTTP\/1\.[01] 200/.test(reply))
+      throw new Error(brief || "elfldr 拒绝了该地址");
+    return brief;
   } finally {
     await chain.syscall(SYS_CLOSE, fd);
   }
@@ -117,13 +189,13 @@ export async function sendPayload(file, fromChain = false) {
   const title = item ? item.name : file;
   running = true;
   setRow(file, "sending");
-  log("发送 " + title + " → 127.0.0.1:" + ELFLDR_PORT, "info");
 
   try {
-    const { ptr, size } = await loadIntoMemory(file);
-    await sendToElfldr(ptr, size);
-    setRow(file, "done", size);
-    log(title + " 发送完成（" + size + " 字节）", "success");
+    const url = payloadFetchUrl(file, pageHref());
+    log("让 elfldr 从本站加载 " + title + " ← " + url, "info");
+    const reply = await sendUriToElfldr(url);
+    setRow(file, "done");
+    log(title + " 已交给 elfldr" + (reply ? "（" + reply.slice(0, 80) + "）" : ""), "success");
     return true;
   } catch (error) {
     setRow(file, "failed");
@@ -146,89 +218,23 @@ export async function runAutoChain() {
       return;
     }
 
-    // 先探测一轮端口，跳过已加载的 ELF（websrv 监听 8080 即视为已加载；
-    // kstuff / ShadowMountPlus 无端口可探，照常发送）
-    let loaded = {};
-    try {
-      const state = await (await fetch("/api/jbstate", { cache: "no-store" })).json();
-      if (state && state.ports)
-        loaded = {
-          ftpsrv: !!state.ports["2121"],
-          panplay: !!state.ports["8734"],
-          websrv: !!state.ports["8080"],
-        };
-    } catch (error) { /* 探测失败就全部照发 */ }
-    const chain = wanted.filter((it) => !loaded[it.id]);
-    const skipped = wanted.filter((it) => loaded[it.id]);
-    for (const it of skipped) {
-      if (window.setElfRowState) window.setElfRowState(it.id, "loaded");
-      log(it.name + " 已在本机运行（端口监听中），跳过不重发", "info");
-    }
-    if (!chain.length) {
-      log("勾选的 ELF 都已加载过，本次无需发送", "success");
-      const finalState = await verifyPorts();
-      if (typeof window.onFlowComplete === "function") window.onFlowComplete(finalState);
-      return;
-    }
-
-    log("按顺序加载: " + chain.map((it) => it.file).join(" → "), "info");
-    for (let i = 0; i < chain.length; i++) {
-      if (!await sendPayload(chain[i].file, true)) {
-        log(chain[i].name + " 加载失败，已停止后续 ELF；检查后重试", "error");
-        return;                 // 后续项可能依赖当前 ELF，不能继续发
+    log("按顺序加载: " + wanted.map((it) => it.file).join(" → "), "info");
+    for (let i = 0; i < wanted.length; i++) {
+      if (!await sendPayload(wanted[i].file, true)) {
+        log(wanted[i].name + " 加载失败，已停止后续 ELF；检查后重试", "error");
+        return;
       }
-      if (i < chain.length - 1) {
+      if (i < wanted.length - 1) {
         log("等待 " + AUTO_STEP_DELAY_MS / 1000 + " 秒后发送下一个…");
         await sleep(AUTO_STEP_DELAY_MS);
       }
     }
-    log("顺序加载结束，向主机确认端口状态…");
-    const finalState = await verifyPorts();
-    if (typeof window.onFlowComplete === "function") window.onFlowComplete(finalState);
+    log("顺序加载结束", "success");
+    if (typeof window.onFlowComplete === "function") window.onFlowComplete();
   } finally {
     chainRunning = false;
     if (button) button.disabled = false;
   }
-}
-
-async function verifyPorts() {
-  const PORT_INFO = probePortInfo();
-  const probe = async () => {
-    try {
-      return await (await fetch("/api/jbstate", { cache: "no-store" })).json();
-    } catch (error) {
-      return null;
-    }
-  };
-
-  let state = await probe();
-  // websrv 刚发的话监听可能晚几秒：elfldr 还在但 8080 未起就等 3 秒复查
-  if (!state || !state.ports || !state.ports["9021"]) {
-    log("等待 3 秒后复查端口…");
-    await sleep(3000);
-    state = await probe();
-  }
-  if (!state || !state.ports) {
-    log("无法向主机确认状态（探测接口无响应），请手动验证端口", "error");
-    return null;
-  }
-
-  log("—— 端口验证（" + state.ip + "）——", "info");
-  if (window.applyElfState) window.applyElfState(state.ports, state);   // 行胶囊同步「已加载」并更新二维码
-  for (const portKey of Object.keys(PORT_INFO)) {
-    const info = PORT_INFO[portKey];
-    const up = !!state.ports[portKey];
-    log((up ? "✓ " : "✗ ") + portKey + "  " + info.name + (up ? "  在监听" : "  未监听（" + info.hint + "）"),
-      up ? "success" : "error");
-  }
-  if (state.ports["8080"]) {
-    log("结论：websrv 可用 —— 手机或电脑浏览器打开 http://" + state.ip + ":8080 追发 payload", "success");
-  } else if (state.ports["9021"]) {
-    log("结论：elfldr 在线但 websrv 未监听 —— 要网页追发就勾选 websrv 再发一次", "success");
-  } else {
-    log("结论：elfldr 已不在监听 —— 需重启后重跑破解流程", "error");
-  }
-  return state;
 }
 
 export function initializePayloadSender(p, chain) {
