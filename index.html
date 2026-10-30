@@ -24,11 +24,10 @@
   </div>
   <div class="matrix-hud-meta" aria-hidden="true">
     <span>SYS.KERNEL <b>RELAPSE_UAF</b></span>
-    <span>HARDLINE <b>:9021 / :8888</b></span>
+    <span>HARDLINE <b>:9021 / :8080</b></span>
   </div>
   <nav class="site-nav" aria-label="主导航">
     <a href="./index.html" aria-current="page">[01] 矩阵控制台</a>
-    <a href="./ftp.html" id="nav-files-link">[02] 文件传输</a>
   </nav>
 </header>
 
@@ -81,7 +80,7 @@
       <div id="exploit-status" class="status-card" data-state="checking">
         <div class="badge"><span class="dot"></span><span id="status-badge">检测中</span></div>
         <h3 id="status-title">正在扫描主机矩阵端口…</h3>
-        <p id="status-body">探测 9021 / 2120 / 8888 / 8080 端口…</p>
+        <p id="status-body">探测 9021 / 2121 / 8734 / 8080 端口…</p>
         <div id="status-actions" class="actions" hidden></div>
       </div>
 
@@ -142,8 +141,9 @@
           </div>
           <div class="dl-links">
             <a href="payloads/kstuff.elf" download>kstuff.elf</a>
+            <a href="payloads/ftpsrv.elf" download>ftpsrv.elf</a>
+            <a href="payloads/panplay.elf" download>panplay.elf</a>
             <a href="payloads/shadowmountplus.elf" download>shadowmountplus.elf</a>
-            <a href="payloads/zftpd.elf" download>zftpd.elf</a>
             <a href="payloads/websrv.elf" download>websrv.elf</a>
             <a href="payloads/elfldr-ps5-1360.elf" download>elfldr.elf</a>
           </div>
@@ -191,7 +191,30 @@
     <!-- 核心服务二维码卡片 -->
     <div class="tools qr-cards">
 
-      <!-- 服务 1：websrv (:8080) -->
+      <!-- 服务 1：panplay (:8734) -->
+      <article class="tool-box qr-card" id="service-panplay" data-service="panplay">
+        <div class="qr-card-top">
+          <h3>盘游 panplay</h3>
+          <span class="service-badge" id="badge-panplay" data-up="wait">待检测 :8734</span>
+        </div>
+
+        <div class="qr-box" data-zoom-qr="panplay" title="点击放大二维码">
+          <div class="qr-canvas" id="qr-panplay" aria-label="panplay 二维码"></div>
+          <span class="qr-caption">百度网盘直装 · 扫码登录</span>
+        </div>
+
+        <div class="qr-url-bar">
+          <code class="qr-url-code" id="url-panplay">http://192.168.1.100:8734</code>
+        </div>
+
+        <div class="qr-card-actions">
+          <a id="link-panplay" class="btn-link primary-link" href="http://192.168.1.100:8734" target="_blank" rel="noreferrer">打开 :8734 ↗</a>
+          <button type="button" class="ghost mini" data-copy-target="url-panplay">复制</button>
+          <button type="button" class="ghost mini" data-zoom-qr="panplay">放大</button>
+        </div>
+      </article>
+
+      <!-- 服务 2：websrv (:8080) -->
       <article class="tool-box qr-card" id="service-websrv" data-service="websrv">
         <div class="qr-card-top">
           <h3>websrv 网页发送器</h3>
@@ -211,29 +234,6 @@
           <a id="link-websrv" class="btn-link primary-link" href="http://192.168.1.100:8080" target="_blank" rel="noreferrer">打开 :8080 ↗</a>
           <button type="button" class="ghost mini" data-copy-target="url-websrv">复制</button>
           <button type="button" class="ghost mini" data-zoom-qr="websrv">放大</button>
-        </div>
-      </article>
-
-      <!-- 服务 2：ZHTTP (:8888) -->
-      <article class="tool-box qr-card" id="service-zhttp" data-service="zhttp">
-        <div class="qr-card-top">
-          <h3>ZHTTP 网页文件管理</h3>
-          <span class="service-badge" id="badge-zhttp" data-up="wait">待检测 :8888</span>
-        </div>
-
-        <div class="qr-box" data-zoom-qr="zhttp" title="点击放大二维码">
-          <div class="qr-canvas" id="qr-zhttp" aria-label="ZHTTP 二维码"></div>
-          <span class="qr-caption">PS5 本机直连 · 免密访问</span>
-        </div>
-
-        <div class="qr-url-bar">
-          <code class="qr-url-code" id="url-zhttp">http://192.168.1.100:8888</code>
-        </div>
-
-        <div class="qr-card-actions">
-          <a id="link-zhttp" class="btn-link primary-link" href="http://192.168.1.100:8888" target="_blank" rel="noreferrer">打开 :8888 ↗</a>
-          <button type="button" class="ghost mini" data-copy-target="url-zhttp">复制</button>
-          <button type="button" class="ghost mini" data-zoom-qr="zhttp">放大</button>
         </div>
       </article>
     </div>

@@ -5,7 +5,6 @@
   DNS  : udp/53   —— 索尼全系域名 NXDOMAIN 拦截（store/image.api 例外放行）+ manuals 劫持到本机
   HTTPS: tcp/443  —— 用户指南/健康与安全指南入口（自签证书 + /document 回首页）
   HTTP : tcp/80   —— 站点本体（PS5 浏览器手输 http://本机IP/ 也可进入）
-  FTP  : /ftp.html —— 局域网加速中转（批量小文件）；公网部署走「浏览器直连 PS5」
 
 PS5 侧设置：手动 DNS 首选填本机 IP，备用留空。
 """
@@ -22,8 +21,6 @@ import time
 import queue
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
-
-from ftp_relay import FtpRelayHandler, RelayNotAllowed, configure as configure_ftp_relay
 
 # ---------------- 可按需修改的配置 ----------------
 HOST_IP = None            # 本机局域网 IP；None = 自动检测（多数情况不用改）
@@ -251,7 +248,7 @@ def dns_loop(host_ip):
 
 # ---------------- 已破解检测（探测请求方即 PS5 本机的破解端口）----------------
 
-JB_PROBE_PORTS = (9021, 2120, 2121, 8888, 8080)   # elfldr / zftpd / ftpsrv / ZHTTP / websrv
+JB_PROBE_PORTS = (9021, 2121, 8734, 8080)   # elfldr / ftpsrv / panplay / websrv
 JB_PROBE_TIMEOUT = 0.6
 
 _seen_devices_lock = threading.Lock()
@@ -286,7 +283,7 @@ def record_ps5_candidate(ip, source="seen", label="局域网设备", ports=None)
     with _seen_devices_lock:
         prev = _seen_devices.get(ip, {})
         # 高优先级来源不被低优先级覆盖
-        priority = {"ps5-ua": 4, "port-scan": 3, "ftp": 3, "dns": 2, "arp": 1}
+        priority = {"ps5-ua": 4, "port-scan": 3, "dns": 2, "arp": 1}
         old_p = priority.get(prev.get("source"), 0)
         new_p = priority.get(source, 1)
         chosen_source = source if new_p >= old_p else prev.get("source", source)
@@ -372,7 +369,7 @@ def discover_ps5_candidates(client_ip=None, scan_subnet=False):
         if ip not in to_probe:
             to_probe.append(ip)
 
-    # 若用户点击了「局域网全网段扫描」，额外快扫主网卡 /24 网段的 9021 / 2120 端口
+    # 若用户点击了「局域网全网段扫描」，额外快扫主网卡 /24 网段的 9021 / 2121 / 8734 / 8080 端口
     if scan_subnet:
         primary = detect_lan_ip()
         if _is_valid_lan_ipv4(primary):
@@ -391,8 +388,12 @@ def discover_ps5_candidates(client_ip=None, scan_subnet=False):
                         cand = q.get_nowait()
                     except queue.Empty:
                         return
-                    if (probe_tcp(cand, 2120, 0.14) or probe_tcp(cand, 2121, 0.14)
-                            or probe_tcp(cand, 9021, 0.14) or probe_tcp(cand, 8888, 0.14)):
+                    if (
+                        probe_tcp(cand, 9021, 0.14)
+                        or probe_tcp(cand, 2121, 0.14)
+                        or probe_tcp(cand, 8734, 0.14)
+                        or probe_tcp(cand, 8080, 0.14)
+                    ):
                         with found_lock:
                             found_from_scan.append(cand)
 
@@ -405,7 +406,7 @@ def discover_ps5_candidates(client_ip=None, scan_subnet=False):
                 if cand not in to_probe:
                     to_probe.append(cand)
 
-    # 并发探测所有候选 IP 的 4 个服务端口（超时 0.22s，整体耗时约 220ms）
+    # 并发探测所有候选 IP 的服务端口（超时 0.22s，整体耗时约 220ms）
     probed_ports = {}
     probe_threads = []
     for ip in to_probe[:24]:
@@ -420,9 +421,7 @@ def discover_ps5_candidates(client_ip=None, scan_subnet=False):
 
     candidates = []
     for ip in to_probe[:24]:
-        ports = probed_ports.get(ip) or {
-            "9021": False, "2120": False, "2121": False, "8888": False, "8080": False,
-        }
+        ports = probed_ports.get(ip) or {str(p): False for p in JB_PROBE_PORTS}
         open_ports = [p for p, up in ports.items() if up]
         meta = seen_Snapshot.get(ip, {})
         source = meta.get("source") or ("port-scan" if open_ports else "arp")
@@ -430,7 +429,7 @@ def discover_ps5_candidates(client_ip=None, scan_subnet=False):
         if open_ports:
             record_ps5_candidate(ip, "port-scan", label if source != "arp" else "端口扫描发现", ports)
             score = 100 + len(open_ports) * 10
-        elif source in ("ps5-ua", "dns", "ftp"):
+        elif source in ("ps5-ua", "dns"):
             score = 60
         elif ip == client_ip and client_ip not in host_ips:
             score = 40
@@ -455,7 +454,7 @@ def discover_ps5_candidates(client_ip=None, scan_subnet=False):
 
 # ---------------- HTTP/HTTPS（80 / 443）----------------
 
-class SiteHandler(FtpRelayHandler, SimpleHTTPRequestHandler):
+class SiteHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=ROOT, **kwargs)
 
@@ -513,8 +512,6 @@ class SiteHandler(FtpRelayHandler, SimpleHTTPRequestHandler):
         if route.path == "/api/jbstate":
             self._api_jbstate(parse_qs(route.query))
             return
-        if self.handle_ftp_get(route.path, parse_qs(route.query)):
-            return
         super().do_GET()
 
     def do_POST(self):
@@ -523,13 +520,8 @@ class SiteHandler(FtpRelayHandler, SimpleHTTPRequestHandler):
         try:
             if route == "/api/elfsend":
                 self._api_elfsend(parse_qs(parsed.query))
-            elif self.handle_ftp_post(route):
-                pass
             else:
                 self._send_json(404, {"error": "未知接口"})
-        except RelayNotAllowed as error:
-            self._send_json(403, {"error": str(error)})
-            out(f"[api] 403 {route}：{error}")
         except ValueError as error:
             self._send_json(400, {"error": str(error)})
             out(f"[api] 400 {route}：{error}")
@@ -641,7 +633,6 @@ def main():
         sys.exit(1)
 
     host_ip = detect_lan_ip()
-    configure_ftp_relay(out, ranked_lan_ips, probe_tcp, record_ps5_candidate, _is_valid_lan_ipv4)
     out("=" * 54)
     out("  PS5 Relapse All-in-One Host")
     out("-" * 54)
@@ -650,7 +641,6 @@ def main():
     if others:
         out(f"  备选 IP     : {', '.join(others[:3])}（选错就改脚本顶部 HOST_IP）")
     out(f"  PS5 浏览器  : http://{host_ip}/")
-    out(f"  传文件到 PS5 : http://{host_ip}/ftp.html（局域网批量中转 + 浏览器直连）")
     out(f"  PS5 手动 DNS: 首选 {host_ip}   备用留空")
     out("  指南入口    : 设置 → 用户指南（证书警告点继续）")
     out("-" * 54)

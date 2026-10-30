@@ -2,10 +2,10 @@
 // 1. 渲染幕二 ELF 加载计划列表（勾选、上移/下移、恢复默认、持久化到 localStorage）。
 // 2. 启动时查询 /api/jbstate 探测请求方（PS5）的端口：
 //    - 9021 在线 → 跳过 WebKit+内核破解，幕一显示「已破解」，幕二切换为经主机转发模式；
-//    - 仅 2120/8888/8080 在线 → 提示「部分服务已运行」，给强行重跑按钮；
+//    - 仅 8080 在线 → 提示「部分服务已运行」，给强行重跑按钮；
 //    - 全不在线 + 是 PS5 → 揭示三阶段轨道并拉起 main.js 执行漏洞链；
 //    - 全不在线 + 非 PS5 → 显示「在电脑上查看」，提供离线下载与手机扫码服务预览。
-// 3. 实时生成下方服务（websrv :8080、ZHTTP 网页文件管理 :8888）的手机扫码二维码。
+// 3. 实时生成 websrv (:8080) 的手机扫码二维码。
 // 4. 全部流程完成后（或主机服务已就绪时），自动折叠上方过程面板，置顶突出展示二维码供用户手机扫码访问。
 
 import { loadPlan, savePlan, resetPlan, itemById, formatSize, renderQRSvg } from "./elfplan.js";
@@ -44,6 +44,8 @@ let exploitBusy = false;
 function writeLog(message, cls) {
   const box = $("console");
   if (!box || typeof box.appendChild !== "function") return;
+  if (cls === "error") cls = "e";
+  else if (cls === "success") cls = "g";
   if (cls === "e") {
     const logDet = $("exploit-log");
     if (logDet) logDet.open = true;
@@ -280,25 +282,25 @@ async function selectPs5Ip(ip, probeNow) {
 
 function getServiceDescriptor(key) {
   const ip = (currentPs5Ip || "192.168.1.100").trim() || "192.168.1.100";
-  if (key === "websrv") {
-    const url = "http://" + ip + ":8080";
+  if (key === "panplay") {
+    const url = "http://" + ip + ":8734";
     return {
-      key: "websrv",
-      title: "websrv 网页发送器 (:8080)",
+      key: "panplay",
+      title: "盘游 panplay (:8734)",
       url,
-      desc: "手机扫码向 PS5 追发任意 payload",
-      up: !!currentPorts["8080"],
-      port: "8080",
+      desc: "百度网盘直装 · 扫码登录网盘",
+      up: !!currentPorts["8734"],
+      port: "8734",
     };
   }
-  const url = "http://" + ip + ":8888";
+  const url = "http://" + ip + ":8080";
   return {
-    key: "zhttp",
-    title: "ZHTTP 网页文件管理 (:8888)",
+    key: "websrv",
+    title: "websrv 网页发送器 (:8080)",
     url,
-    desc: "PS5 本机直连 · 免密访问",
-    up: !!currentPorts["8888"],
-    port: "8888",
+    desc: "手机扫码向 PS5 追发任意 payload",
+    up: !!currentPorts["8080"],
+    port: "8080",
   };
 }
 
@@ -336,12 +338,24 @@ function updateServiceQRCodes() {
 
   const stIp = $("st-ip");
   if (stIp) {
-    const openCount = ["9021", "2120", "8888", "8080"].filter((p) => currentPorts[p]).length;
+    const openCount = ["9021", "2121", "8734", "8080"].filter((p) => currentPorts[p]).length;
     stIp.textContent = ip + (openCount ? " (" + openCount + " 在线)" : "");
     stIp.className = openCount ? "ok" : "";
   }
 
-  // 1. websrv (:8080)
+  // 1. panplay (:8734)
+  const pan = getServiceDescriptor("panplay");
+  const qrPan = $("qr-panplay");
+  if (qrPan) qrPan.innerHTML = safeRenderQR(pan.url);
+  const urlPan = $("url-panplay");
+  if (urlPan) urlPan.textContent = pan.url;
+  const linkPan = $("link-panplay");
+  if (linkPan) linkPan.href = pan.url;
+  setBadgeState($("badge-panplay"), pan.up, "8734");
+  const cardPan = $("service-panplay");
+  if (cardPan && cardPan.dataset) cardPan.dataset.online = pan.up ? "1" : "0";
+
+  // 2. websrv (:8080)
   const web = getServiceDescriptor("websrv");
   const qrWeb = $("qr-websrv");
   if (qrWeb) qrWeb.innerHTML = safeRenderQR(web.url);
@@ -352,18 +366,6 @@ function updateServiceQRCodes() {
   setBadgeState($("badge-websrv"), web.up, "8080");
   const cardWeb = $("service-websrv");
   if (cardWeb && cardWeb.dataset) cardWeb.dataset.online = web.up ? "1" : "0";
-
-  // 2. ZHTTP (:8888)
-  const zhttp = getServiceDescriptor("zhttp");
-  const qrZhttp = $("qr-zhttp");
-  if (qrZhttp) qrZhttp.innerHTML = safeRenderQR(zhttp.url);
-  const urlZhttp = $("url-zhttp");
-  if (urlZhttp) urlZhttp.textContent = zhttp.url;
-  const linkZhttp = $("link-zhttp");
-  if (linkZhttp) linkZhttp.href = zhttp.url;
-  setBadgeState($("badge-zhttp"), zhttp.up, "8888");
-  const cardZhttp = $("service-zhttp");
-  if (cardZhttp && cardZhttp.dataset) cardZhttp.dataset.online = zhttp.up ? "1" : "0";
 }
 
 // 折叠/展开单个幕模块
@@ -664,13 +666,16 @@ function setRowState(id, st, bytes) {
     pill.dataset.st = st;
     pill.textContent = (STATE_TEXT[st] || st) + (bytes ? ` (${formatSize(bytes)})` : "");
   }
-  if (st === "done" || st === "loaded") {
-    if (id === "zftpd") {
-      currentPorts["2120"] = true;
-      currentPorts["8888"] = true;
-    } else if (id === "websrv") {
-      currentPorts["8080"] = true;
-    }
+  if ((st === "done" || st === "loaded") && id === "ftpsrv") {
+    currentPorts["2121"] = true;
+    updateServiceQRCodes();
+  }
+  if ((st === "done" || st === "loaded") && id === "websrv") {
+    currentPorts["8080"] = true;
+    updateServiceQRCodes();
+  }
+  if ((st === "done" || st === "loaded") && id === "panplay") {
+    currentPorts["8734"] = true;
     updateServiceQRCodes();
   }
 }
@@ -693,7 +698,8 @@ function applyElfState(ports, fullState) {
     if (isIpv4(fullState.host_ip)) currentHostIp = fullState.host_ip;
     if (fullState.http_port) currentHttpPort = fullState.http_port;
   }
-  if (ports["2120"] || ports["8888"]) setRowState("zftpd", "loaded");
+  if (ports["2121"]) setRowState("ftpsrv", "loaded");
+  if (ports["8734"]) setRowState("panplay", "loaded");
   if (ports["8080"]) setRowState("websrv", "loaded");
   if (ports["9021"] && $("st-ldr")) {
     $("st-ldr").textContent = "在线 :9021";
@@ -756,13 +762,18 @@ async function sendOneViaHost(id) {
   const it = itemById(id);
   if (!it) return false;
   const targetHost = hostSendIp || currentPs5Ip || "";
-  // 发送前复查端口：zftpd / websrv 已在跑就直接标「已加载」不重发
+  // 发送前复查端口：websrv 已在跑就直接标「已加载」不重发
   try {
     const st = await (await fetch("/api/jbstate?target=" + encodeURIComponent(targetHost), { cache: "no-store" })).json();
     if (st && st.ports) {
       applyElfState(st.ports, st);
-      if ((id === "zftpd" && (st.ports["2120"] || st.ports["8888"])) ||
-          (id === "websrv" && st.ports["8080"])) {
+      if (id === "ftpsrv" && st.ports["2121"]) {
+        return true;
+      }
+      if (id === "websrv" && st.ports["8080"]) {
+        return true;
+      }
+      if (id === "panplay" && st.ports["8734"]) {
         return true;
       }
     }
@@ -793,7 +804,8 @@ async function runPlanViaHost() {
     if (st && st.ports) {
       applyElfState(st.ports, st);
       loaded = {
-        zftpd: !!(st.ports["2120"] || st.ports["8888"]),
+        ftpsrv: !!st.ports["2121"],
+        panplay: !!st.ports["8734"],
         websrv: !!st.ports["8080"],
       };
     }
@@ -868,16 +880,23 @@ function enterJailbroken(state, ua) {
 
   const openList = [];
   if (state.ports["9021"]) openList.push("<code>9021</code> elfldr");
-  if (state.ports["2120"]) openList.push("<code>2120</code> zftpd FTP");
-  if (state.ports["8888"]) openList.push("<code>8888</code> ZHTTP 网页");
+  if (state.ports["8734"]) openList.push("<code>8734</code> panplay");
   if (state.ports["8080"]) openList.push("<code>8080</code> websrv");
+
+  const guideLinks = [];
+  if (state.ports["8734"]) {
+    guideLinks.push(`<a href="http://${state.ip}:8734" target="_blank" rel="noreferrer">盘游 panplay</a>`);
+  }
+  if (state.ports["8080"]) {
+    guideLinks.push(`<a href="http://${state.ip}:8080" target="_blank" rel="noreferrer">websrv 网页发送器</a>`);
+  }
 
   setStatus(
     "ok",
     `主机 ${state.ip} 已破解`,
     `在线端口：${openList.join(" · ")}。` +
-    (state.ports["8888"]
-      ? ` 可直接扫码或打开 <a href="http://${state.ip}:8888" target="_blank" rel="noreferrer">ZHTTP 文件管理</a>。`
+    (guideLinks.length
+      ? ` 可直接打开 ${guideLinks.join(" 或 ")}。`
       : ` 可展开「02 ELF 加载计划」补发组件。`),
     `<button type="button" id="btn-force-rerun" class="ghost">强制重跑</button>`
   );
@@ -900,7 +919,7 @@ function enterJailbroken(state, ua) {
   }
 
   // 主机已破解时，默认自动折叠过程详情，直接主推下方服务二维码供用户扫码
-  const hasAppService = !!(state.ports["2120"] || state.ports["8888"] || state.ports["8080"]);
+  const hasAppService = !!(state.ports["8080"] || state.ports["8734"]);
   setFlowCollapsed(
     true,
     hasAppService
@@ -908,7 +927,7 @@ function enterJailbroken(state, ua) {
       : `主机 ${state.ip} 已破解 (:9021 在线)`,
     hasAppService
       ? "后台服务运行中，手机连接同一 Wi-Fi 即可扫码直连。"
-      : "如需启动文件管理或网页发送器，可展开「02 ELF 加载计划」一键发送。"
+      : "如需启动网页发送器，可展开「02 ELF 加载计划」一键发送。"
   );
 }
 
@@ -922,16 +941,14 @@ function enterPartial(state, ua) {
     $("st-ldr").textContent = "离线";
     $("st-ldr").className = "warn";
   }
-  const hasFtp = !!state.ports["2120"];
-  const hasZhttp = !!state.ports["8888"];
   const hasWebsrv = !!state.ports["8080"];
+  const hasPanplay = !!state.ports["8734"];
   const running = [];
-  if (hasFtp) running.push("zftpd FTP (<code>:2120</code>)");
-  if (hasZhttp) running.push("ZHTTP (<code>:8888</code>)");
+  if (hasPanplay) running.push("panplay (<code>:8734</code>)");
   if (hasWebsrv) running.push("websrv (<code>:8080</code>)");
   const guideParts = [];
-  if (hasZhttp) guideParts.push(`打开 <a href="http://${state.ip}:8888" target="_blank" rel="noreferrer">ZHTTP 文件管理</a>`);
-  if (hasWebsrv) guideParts.push(`访问 <code>http://${state.ip}:8080</code> 追发 payload`);
+  if (hasPanplay) guideParts.push(`打开 <a href="http://${state.ip}:8734" target="_blank" rel="noreferrer">盘游 panplay</a>`);
+  if (hasWebsrv) guideParts.push(`打开 <a href="http://${state.ip}:8080" target="_blank" rel="noreferrer">websrv 网页发送器</a>`);
   const guideText = guideParts.length ? `可直接${guideParts.join("，或")}。` : "";
   setStatus(
     "ok",
@@ -1105,7 +1122,7 @@ function enterFWBad(reason) {
   setStatus(
     "fail",
     "固件不受支持",
-    `${reason}（支持 FW <b>7.00 – 10.01</b>）。电脑访问请直接在下方扫码或打开 ZHTTP 文件管理（<code>:8888</code>）。`
+    `${reason}（支持 FW <b>7.00 – 10.01</b>）。电脑访问请直接在下方扫码或打开 websrv（<code>:8080</code>）。`
   );
   if ($("pcsend")) $("pcsend").hidden = false;
   updatePcSendCmd();
@@ -1275,14 +1292,14 @@ async function boot() {
         host_ip: currentHostIp || (pfx + "182"),
         host_ips: [currentHostIp || (pfx + "182"), "192.168.1.50"],
         http_port: currentHttpPort,
-        ports: { "9021": true, "2120": true, "8888": true, "8080": true },
+        ports: { "9021": true, "8080": true },
         ps5_candidates: [
           {
             ip: demoIp,
             source: "ps5-ua",
             label: "PS5 用户指南 · 在线",
-            ports: { "9021": true, "2120": true, "8888": true, "8080": true },
-            open_ports: ["9021", "2120", "8888", "8080"],
+            ports: { "9021": true, "8080": true },
+            open_ports: ["9021", "8080"],
             online: true,
             score: 140,
           },
@@ -1290,8 +1307,8 @@ async function boot() {
             ip: pfx + "105",
             source: "dns",
             label: "DNS 活跃记录",
-            ports: { "9021": false, "2120": true, "8888": true, "8080": false },
-            open_ports: ["2120", "8888"],
+            ports: { "9021": false, "8080": true },
+            open_ports: ["8080"],
             online: true,
             score: 120,
           },
@@ -1299,7 +1316,7 @@ async function boot() {
             ip: pfx + "128",
             source: "arp",
             label: "局域网邻居",
-            ports: { "9021": false, "2120": false, "8888": false, "8080": false },
+            ports: { "9021": false, "8080": false },
             open_ports: [],
             online: false,
             score: 10,
@@ -1310,7 +1327,7 @@ async function boot() {
         ip: demoIp,
         host_ip: currentHostIp || (pfx + "182"),
         http_port: currentHttpPort,
-        ports: { "9021": true, "2120": true, "8888": true, "8080": true },
+        ports: { "9021": true, "8080": true },
         jailbroken: true,
       });
       return;
@@ -1322,7 +1339,7 @@ async function boot() {
     enterUnknown(state, ua);
   } else if (ports["9021"]) {
     enterJailbroken(state, ua);
-  } else if (state.jailbroken || ports["2120"] || ports["8888"] || ports["8080"]) {
+  } else if (state.jailbroken || ports["8080"] || ports["8734"]) {
     enterPartial(state, ua);
   } else {
     enterReady(ua);

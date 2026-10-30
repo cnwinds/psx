@@ -2,7 +2,7 @@
 // 通过 ROP 驱动的 TCP 连接把 ELF 逐个推过去。发送哪些、按什么顺序，
 // 全部由 elfplan（幕二的勾选与排序）决定。
 
-import { loadPlan, itemById, itemByFile } from "./elfplan.js";
+import { loadPlan, itemById, itemByFile, probePortInfo } from "./elfplan.js";
 
 const AF_INET = 2;
 const SOCK_STREAM = 1;
@@ -14,7 +14,9 @@ let running = false;
 let chainRunning = false;
 
 function log(message, type = "log") {
-  if (typeof window.writeLog === "function") window.writeLog(message, type);
+  if (typeof window.writeLog !== "function") return;
+  const cls = type === "error" ? "e" : type === "success" ? "g" : type;
+  window.writeLog(message, cls);
 }
 
 function sleep(ms) {
@@ -144,14 +146,15 @@ export async function runAutoChain() {
       return;
     }
 
-    // 先探测一轮端口，跳过已加载的 ELF（zftpd 监听 2120/8888 即视为已加载；
+    // 先探测一轮端口，跳过已加载的 ELF（websrv 监听 8080 即视为已加载；
     // kstuff / ShadowMountPlus 无端口可探，照常发送）
     let loaded = {};
     try {
       const state = await (await fetch("/api/jbstate", { cache: "no-store" })).json();
       if (state && state.ports)
         loaded = {
-          zftpd: !!(state.ports["2120"] || state.ports["8888"]),
+          ftpsrv: !!state.ports["2121"],
+          panplay: !!state.ports["8734"],
           websrv: !!state.ports["8080"],
         };
     } catch (error) { /* 探测失败就全部照发 */ }
@@ -188,15 +191,8 @@ export async function runAutoChain() {
   }
 }
 
-// 让主机端探测发起请求的设备（就是本机 PS5）的端口，逐个报告监听状态。
-const PORT_INFO = {
-  9021: { name: "elfldr（payload 通道）", hint: "已退出，需重启后重跑破解流程" },
-  2120: { name: "zftpd FTP（传文件）", hint: "在幕二勾选 zftpd 发送" },
-  8888: { name: "zftpd ZHTTP（网页文件管理）", hint: "随 zftpd 一起起来" },
-  8080: { name: "websrv（网页发送器）", hint: "在幕二勾选 websrv 发送" },
-};
-
 async function verifyPorts() {
+  const PORT_INFO = probePortInfo();
   const probe = async () => {
     try {
       return await (await fetch("/api/jbstate", { cache: "no-store" })).json();
@@ -206,8 +202,8 @@ async function verifyPorts() {
   };
 
   let state = await probe();
-  // zftpd 刚发的话监听可能晚几秒：没探齐就等 3 秒复查一次再下结论
-  if (!state || !state.ports || !state.ports["9021"] || !state.ports["2120"]) {
+  // websrv 刚发的话监听可能晚几秒：elfldr 还在但 8080 未起就等 3 秒复查
+  if (!state || !state.ports || !state.ports["9021"]) {
     log("等待 3 秒后复查端口…");
     await sleep(3000);
     state = await probe();
@@ -225,10 +221,10 @@ async function verifyPorts() {
     log((up ? "✓ " : "✗ ") + portKey + "  " + info.name + (up ? "  在监听" : "  未监听（" + info.hint + "）"),
       up ? "success" : "error");
   }
-  if (state.ports["8888"] || state.ports["2120"]) {
-    log("结论：文件服务可用 —— 手机或电脑浏览器打开 ZHTTP 网页文件管理 http://" + state.ip + ":8888（FTP 客户端可连 :2120）", "success");
+  if (state.ports["8080"]) {
+    log("结论：websrv 可用 —— 手机或电脑浏览器打开 http://" + state.ip + ":8080 追发 payload", "success");
   } else if (state.ports["9021"]) {
-    log("结论：elfldr 在线但 zftpd 未监听 —— 要传文件就勾选 zftpd 再发一次", "success");
+    log("结论：elfldr 在线但 websrv 未监听 —— 要网页追发就勾选 websrv 再发一次", "success");
   } else {
     log("结论：elfldr 已不在监听 —— 需重启后重跑破解流程", "error");
   }

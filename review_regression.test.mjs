@@ -48,7 +48,7 @@ test('发送链按勾选顺序运行，首个 ELF 失败即停止且按钮恢复
   const requested = [];
   const button = {disabled: false, addEventListener() {}};
   globalThis.localStorage = {
-    getItem: () => JSON.stringify({order: ['kstuff', 'smp'], off: ['zftpd', 'websrv']}),
+    getItem: () => JSON.stringify({order: ['kstuff', 'smp'], off: ['websrv']}),
   };
   globalThis.window = {writeLog() {}, setElfRowState() {}};
   globalThis.document = {
@@ -75,7 +75,7 @@ test('自动加载探测端口期间忽略手动发送，不会中断自动队�
   const listeners = new Map();
   let finishProbe;
   globalThis.localStorage = {
-    getItem: () => JSON.stringify({order: ['kstuff'], off: ['smp', 'zftpd', 'websrv']}),
+    getItem: () => JSON.stringify({order: ['kstuff'], off: ['smp', 'websrv']}),
   };
   globalThis.window = {writeLog: message => messages.push(message), setElfRowState() {}};
   globalThis.document = {
@@ -101,7 +101,7 @@ test('自动加载探测端口期间忽略手动发送，不会中断自动队�
   assert.doesNotMatch(messages.join('\n'), /已有 payload 正在发送/);
 });
 
-test('首页保留脚本依赖的 DOM，且 ftp.html 提供双模式文件传输', () => {
+test('首页保留脚本依赖的 DOM，且不包含 FTP 中转页', () => {
   const home = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
   const css = readFileSync(new URL('./ui.css', import.meta.url), 'utf8');
   const homeIds = [
@@ -109,22 +109,16 @@ test('首页保留脚本依赖的 DOM，且 ftp.html 提供双模式文件传输
     'status-body', 'status-actions', 'rail', 'stage-webkit', 'stage-kernel',
     'stage-elfldr', 'console', 'act-payloads', 'btn-runplan', 'btn-resetplan',
     'autorun-opt', 'plan-mode', 'elf-rows', 'pcsend', 'pcsend-cmd', 'pcsend-ps',
+    'service-panplay', 'qr-panplay', 'url-panplay',
+    'service-websrv', 'qr-websrv', 'url-websrv',
   ];
   assert.match(home, /href="\.\/ui\.css"/);
   const actual = [...home.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]);
   assert.equal(new Set(actual).size, actual.length, '静态 id 不得重复');
   for (const id of homeIds) assert.ok(actual.includes(id), `缺少 #${id}`);
-  assert.equal(existsSync(new URL('./ftp.html', import.meta.url)), true);
-  const ftp = readFileSync(new URL('./ftp.html', import.meta.url), 'utf8');
-  assert.match(ftp, /panel-relay/);
-  assert.match(ftp, /panel-direct/);
-  assert.match(ftp, /\/api\/ftp\/probe/);
-  assert.match(ftp, /ftp_browser\.js/);
-  assert.match(ftp, /transportList/);
-  assert.equal(existsSync(new URL('./src/ftp_browser.js', import.meta.url)), true);
-  assert.match(readFileSync(new URL('./index.html', import.meta.url), 'utf8'), /href="\.\/ftp\.html"/);
-  assert.match(readFileSync(new URL('./ftp_relay.py', import.meta.url), 'utf8'), /\/api\/ftp\/probe/);
-  assert.match(readFileSync(new URL('./serve.py', import.meta.url), 'utf8'), /ftp_relay/);
+  assert.equal(existsSync(new URL('./ftp.html', import.meta.url)), false);
+  assert.doesNotMatch(home, /ftp\.html/);
+  assert.doesNotMatch(readFileSync(new URL('./serve.py', import.meta.url), 'utf8'), /ftp_relay/);
   assert.match(css, /\[hidden\].*display: none !important/);
   assert.match(css, /#console div:last-child:not\(\.e\):not\(\.g\)/);
 });
@@ -161,12 +155,9 @@ test('部分在线时只推荐确实在线的服务', () => {
     globalThis.renderPartial = enterPartial;
   `, sandbox);
   sandbox.renderPartial({ip: '192.168.1.2', ports: {'8080': true}});
-  assert.match(sandbox.bodyText, /:8080/);
-  assert.doesNotMatch(sandbox.bodyText, /:8888/);
-  sandbox.renderPartial({ip: '192.168.1.2', ports: {'8888': true}});
-  assert.match(sandbox.bodyText, /href="http:\/\/192\.168\.1\.2:8888"/);
-  sandbox.renderPartial({ip: '192.168.1.2', ports: {'2120': true}});
-  assert.doesNotMatch(sandbox.bodyText, /href=/);
+  assert.match(sandbox.bodyText, /href="http:\/\/192\.168\.1\.2:8080"/);
+  sandbox.renderPartial({ip: '192.168.1.2', ports: {'9021': true, '8080': false}});
+  assert.doesNotMatch(sandbox.bodyText, /:8080/);
 });
 
 test('离线二维码生成与全部流程完成后自动折叠并突出展示二维码', async () => {
@@ -174,7 +165,7 @@ test('离线二维码生成与全部流程完成后自动折叠并突出展示�
   const svg = renderQRSvg('http://192.168.1.88:8080');
   assert.match(svg, /^<svg class="qr-svg"/);
   assert.match(svg, /<path d="M/);
-  const mat = encodeQRMatrix('http://192.168.1.88:8888');
+  const mat = encodeQRMatrix('http://192.168.1.88:8080');
   assert.ok(mat.size >= 25);
 
   const file = readFileSync(new URL('./src/site.js', import.meta.url), 'utf8');
@@ -226,7 +217,7 @@ test('离线二维码生成与全部流程完成后自动折叠并突出展示�
     },
     URLSearchParams,
     fetch: async () => ({json: async () => ({})}),
-    loadPlan: () => ({order: ['kstuff', 'zftpd', 'websrv'], off: new Set()}),
+    loadPlan: () => ({order: ['kstuff', 'websrv'], off: new Set()}),
     savePlan() {}, resetPlan() {},
     itemById: (id) => ({id, name: id, file: id + '.elf', ver: '1.0', desc: '', src: '', size: 1024}),
     formatSize: () => '1 KB',
@@ -239,7 +230,7 @@ test('离线二维码生成与全部流程完成后自动折叠并突出展示�
     ip: '192.168.1.88',
     host_ip: '192.168.1.10',
     http_port: 80,
-    ports: {'9021': true, '2120': true, '8888': true, '8080': true},
+    ports: {'9021': true, '8080': true},
   });
 
   // 验证次要内容（Intro、01 破解详情、02 加载计划详情）均已自动折叠，且 body 标记为 flow-done
@@ -249,10 +240,8 @@ test('离线二维码生成与全部流程完成后自动折叠并突出展示�
   assert.equal(getEl('body-payloads').hidden, true);
   assert.equal(getEl('flow-complete-banner').hidden, false);
 
-  // 验证服务访问地址与二维码均已按真实 PS5 IP 生成，文件传输入口指向 ftp.html
+  // 验证 websrv 访问地址与二维码均已按真实 PS5 IP 生成
   assert.equal(getEl('url-websrv').textContent, 'http://192.168.1.88:8080');
-  assert.equal(getEl('url-zhttp').textContent, 'http://192.168.1.88:8888');
   assert.match(getEl('qr-websrv').innerHTML, /<svg class="qr-svg"/);
-  assert.match(getEl('qr-zhttp').innerHTML, /<svg class="qr-svg"/);
 });
 

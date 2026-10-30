@@ -16,9 +16,7 @@ class RegressionTests(unittest.TestCase):
                  patch.object(serve, "read_arp_neighbors", return_value=["192.168.30.128"]), \
                  patch.object(serve, "probe_ports_map", side_effect=lambda ip, *_a, **_kw: {
                      "9021": ip == "192.168.30.86",
-                     "2120": ip in ("192.168.30.86", "192.168.30.105"),
-                     "8888": False,
-                     "8080": False,
+                     "8080": ip in ("192.168.30.86", "192.168.30.105"),
                  }):
                 cands = serve.discover_ps5_candidates(client_ip="127.0.0.1", scan_subnet=False)
                 self.assertEqual([c["ip"] for c in cands], [
